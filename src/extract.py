@@ -646,6 +646,7 @@ class cveExtractor():
                                 if cve_data:
                                     # appending extracted data from response
                                     record = self.extract_cve_data(cve_data)
+                                    #logging.info(f'This is record: {record}')
                                     subdir_processed_files.append(record)
                                     #logging.info(f'This is subdir right now: {subdir_processed_files}')
 
@@ -672,7 +673,9 @@ class cveExtractor():
                         traceback.print_exc()
 
                 if subdir_processed_files:
-                    logging.info(f'Appending files from {subdir} to {year_data['year']} processing list')
+                    #logging.info(f'Appending files from {subdir} to {year_data['year']} processing list')
+                    #logging.info(f'This is the subdir: {subdir_processed_files}')
+
                     # Flattening the year_processed array by using extend  
                     year_processed_files.extend(subdir_processed_files)
 
@@ -681,16 +684,15 @@ class cveExtractor():
             import traceback
             traceback.print_exc()
 
-        #logging.info(f'This is the year_processed_files list: {year_processed_files}')
+        
 
         if year_processed_files:
-            logging.info(f'These are the processed files for {year_data['year']} : {year_processed_files}')
-            #logging.info(f'This is the year_processed_files list: {year_processed_files}')
-
+            logging.info(f'This is the year_processed_files list: {year_processed_files}')
             # Path 1: Create a csv file in the local dataset for internal storage
             if self.islocal:
                 self.year_to_csv(year_processed_files, year=year_data['year'])
             else:
+                pass
                 #Path 2: Send to the google client so a csv can be created there
                 self.google_client.csv_to_bucket(year_processed_files, year=year_data['year'])
 

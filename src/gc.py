@@ -74,7 +74,7 @@ class googleClient():
             return False
 
             
-    def csv_bigquery(self, isLocal, files :Optional[List]= [], year:Optional[str] = '1999'):
+    def csv_bigquery(self, isLocal, files :List= [], year:str = '1999'):
 
         # Check if it is automated mode 
         if not isLocal:
@@ -82,20 +82,18 @@ class googleClient():
             dataset_id = 'cisa-cve-data-pipeline.cve_all_new'
             dataset_exists = False
 
-            if (self.checkdatasetexists(dataset_id) == False):
-                try:               
-                    #Create a bigquery dataset object
-                    dataset = bigquery.Dataset(dataset_id)
-                    dataset.location = 'US'
+            try:               
+                #Create a bigquery dataset object
+                dataset = bigquery.Dataset(dataset_id)
+                dataset.location = 'US'
 
-                    dataset = self.bigquery_client.create_dataset(dataset=dataset, timeout=30)
-                    logging.info(f'Successfully created: {dataset.dataset_id} in {self.bigquery_client.project}')
-                    dataset_exists = True
-                except Exception as e:
-                    logging.warning(f'Error creating dataset: {e}')
-            else:
-                logging.info(f'Dataset {dataset_id} already exists for the project {self.bigquery_client.project}')
+                dataset = self.bigquery_client.create_dataset(dataset=dataset, exists_ok=True ,timeout=30)
+                logging.info(f'Successfully created: {dataset.dataset_id} in {self.bigquery_client.project}')
                 dataset_exists = True
+            except Exception as e:
+                logging.warning(f'Error creating dataset: {e}')
+                dataset_exists = False
+        
 
             
             # If dataset exists proceeding with table creation or update
@@ -130,62 +128,44 @@ class googleClient():
 
                             bigquery.SchemaField('ssvc_timestamp', 'STRING', description='Date SSVC score was added'),
                             bigquery.SchemaField('ssvc_exploitation', 'STRING', description='Whether exploitable'),
-                            bigquery.SchemaField('ssvc_automatable', 'STRING', description='Wheter automatable'),
+                            bigquery.SchemaField('ssvc_automatable', 'STRING', description='Whether automatable'),
                             bigquery.SchemaField('ssvc_technical_impact', 'STRING', description='SSVC impact level'),
                             bigquery.SchemaField('ssvc_decision', 'STRING', description='SSVC decision for metrics'),
 
                             bigquery.SchemaField('impacted_vendor', 'STRING', description='List of vendors impacted'),
-                            bigquery.SchemaField('impacted_products', 'STRING', description='List of products impacted'),
-                            bigquery.SchemaField('vulnerable_versions', 'STRING', description='List of product versions impacted'),
+                            bigquery.SchemaField('impacted_products', 'STRING', mode='REPEATED', description='List of products impacted'),
+                            bigquery.SchemaField('vulnerable_versions', 'STRING', mode='REPEATED', description='List of product versions impacted'),
 
                             bigquery.SchemaField('cwe_number', 'STRING', description='CWE description number'),
                             bigquery.SchemaField('cwe_description', 'STRING', description='Description of CWE')]
-
-                #if table doesnt exist
-                if (self.checktableexists(table_ref) == False):
-
-                    try: 
                 
-                        # Defining the new table
-                        new_table = bigquery.Table(table_ref, schema= year_table_schema)
-                        
-                        #Inserting new table into the dataset
-                        table = self.bigquery_client.create_table(new_table)
-                        logging.info(f'Successfully created table: {table.table_id} in dataset folder {table.dataset_id}')
-                        rows_to_insert = files
+                # Defining the new table object
+                new_table = bigquery.Table(table_ref, schema= year_table_schema)
 
-                        #Populating the table with cve entries 
-                        fill_errors = self.bigquery_client.insert_rows_json(
-                            table = new_table,
-                            json_rows= rows_to_insert
-                        )
+                try: 
+                    #Inserting new table into the dataset
+                    table = self.bigquery_client.create_table(table= new_table, exists_ok=True)
 
-                        if fill_errors:
-                            logging.ERROR(f'Error while filling rows for table {table_ref}')
+                    updated_table = self.bigquery_client.update_table(table, fields=['schema'])
 
-                            # Return obj is a list of errors. Each element has propert
-                            for error in fill_errors:
-                                logging.warning(f'Error inserting at {error['index']}: error:{error['errors']}')
-                        else:
-                            logging.info(f'Successfully inserted rows for table: {table_ref}')
+                    logging.info(f'Successfully created table: {updated_table.table_id} in dataset folder {updated_table.dataset_id}')
 
+                    rows_to_insert = files                    
+                    fill_errors = self.bigquery_client.insert_rows_json(
+                        table = new_table,
+                        json_rows= rows_to_insert
+                    )
 
-                    except Exception as e:
-                        logging.warning(f'failed to create table: {e}')
-                        
-                # Case that table already exists
-                else:
-                    logging.info('Table already exists')
+                    if fill_errors:
+                        logging.ERROR(f'Error while filling rows for table {table_ref}')
 
-        
+                        # Return obj is a list of errors. Each element has propert
+                        for error in fill_errors:
+                            logging.warning(f'Error inserting at {error['index']}: error:{error['errors']}')
+                    else:
+                        logging.info(f'Successfully inserted rows for table: {table_ref}')
 
+                except Exception as e:
+                    logging.warning(f'failed to create table: {e}')
 
-            
-            
-
-
-        
-            
-
-
-
+                    
