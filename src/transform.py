@@ -2,8 +2,7 @@ import logging
 import json 
 import argparse
 import pandas as pd
-from google.cloud import storage
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 
 from .gc import GoogleClient
 from src.extract import cveExtractor
