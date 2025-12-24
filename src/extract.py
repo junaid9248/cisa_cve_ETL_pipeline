@@ -14,6 +14,7 @@ from src.gc import GoogleClient
 
 from src.parser import extract_cvedata
 
+
 logging.basicConfig(level=logging.INFO)
 
 #If not available locally will not execute
@@ -50,8 +51,6 @@ class cveExtractor():
 
         self.token = GH_TOKEN or token
         #logging.info(f'This is the set GH token: {self.token}')
-
-        
         
         if self.token:
             logging.info('GitHub token for authentication was found and used to establish session')
@@ -353,6 +352,7 @@ class cveExtractor():
 
     # Psuedo main function called from main.py
     def run(self, years: List[str] = []):
+
         
         success= self.test_connection()
 

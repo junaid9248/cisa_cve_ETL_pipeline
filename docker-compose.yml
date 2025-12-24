@@ -22,7 +22,8 @@ services:
   #Service 2: Airflow Webserver
   airflow-webserver:
     build: .
-
+    env_file:
+      - .env
     image: cve-airflow:latest
     depends_on:
       - postgres
@@ -31,12 +32,15 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
-      AIRFLOW__WEBSERVER__SECRET_KEY: 'new0535341996!'
       # For later version of Airflow, default auth manager is SimpleAuthManager so we change it to FabAuthManager
       AIRFLOW__CORE__AUTH_MANAGER: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
       AIRFLOW__CORE__HOSTNAME_CALLABLE: "airflow.utils.net.get_host_ip_address"
+      
+      # Non-critcal env vars
+      IS_LOCAL: 'false'
+      GCLOUD_PROJECTNAME: "cisa-cve-data-pipeline"
       PYTHONPATH: /opt/airflow/repo
-      GCLOUD_APP_CREDENTIALS: /opt/airflow/secrets/cisa-cve-data-pipeline-a26a62e94ef3.json
+
     ports:
       - "8080:8080"
     volumes:
@@ -51,6 +55,7 @@ services:
                       --lastname Flow 
                       --role Admin 
                       --email junaidwork456@gmail.com
+                      || true
                       && airflow webserver"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -63,6 +68,10 @@ services:
   airflow-scheduler:
     build: .
 
+    env_file:
+      - .env
+
+
     image: cve-airflow:latest
     depends_on:
       - postgres
@@ -73,9 +82,11 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
       AIRFLOW__CORE__HOSTNAME_CALLABLE: "airflow.utils.net.get_host_ip_address"
-      AIRFLOW__WEBSERVER__SECRET_KEY: 'new0535341996!'
+      # Non-critcal env vars
+      IS_LOCAL: 'false'
+      GCLOUD_PROJECTNAME: "cisa-cve-data-pipeline"
       PYTHONPATH: /opt/airflow/repo
-      GCLOUD_APP_CREDENTIALS: /opt/airflow/secrets/cisa-cve-data-pipeline-a26a62e94ef3.json
+
 
 
     volumes:

@@ -23,5 +23,4 @@ __pycache__/
 # Enviroment variable files.env
 *.env
 
-
-secrets/
+*secrets/

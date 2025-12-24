@@ -6,7 +6,7 @@ import json
 import logging
 import pandas as pd
 from typing import Dict, List, Optional, Any
-from src.config import GCLOUD_BUCKETNAME, GCLOUD_APP_CREDENTIALS, GCLOUD_PROJECTNAME
+from src.config import GCLOUD_BUCKETNAME, GOOGLE_APPLICATION_CREDENTIALS, GCLOUD_PROJECTNAME
 
 logging.basicConfig(level = logging.INFO)
 
@@ -51,7 +51,7 @@ class GoogleClient():
     def __init__(self, bucket_name: str = GCLOUD_BUCKETNAME):
 
         self.projectID = GCLOUD_PROJECTNAME
-        self.credentials = service_account.Credentials.from_service_account_file(GCLOUD_APP_CREDENTIALS)
+        self.credentials = service_account.Credentials.from_service_account_file(GOOGLE_APPLICATION_CREDENTIALS)
 
         #Defining the google storage client and bigquery client with credentials and project id 
         self.storage_client = storage.Client(credentials=self.credentials, project= self.projectID)

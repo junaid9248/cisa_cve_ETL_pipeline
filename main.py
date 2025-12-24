@@ -1,7 +1,5 @@
-import sys
 import logging
 import argparse
-
 from src.extract import cveExtractor
 from src.config import IS_LOCAL
 
@@ -18,10 +16,13 @@ if __name__ == '__main__':
     argparser.add_argument('--cloud', action='store_true', help='Run in GC mode and save to cloud storage + bigquery')
 
     # Argument for custom, reduced list of years passed in either mode for testing purposes 
-    argparser.add_argument('testyearslist', type= str, help='Comma separated years list passed manually for testing')
+    argparser.add_argument('testyearslist',
+                           nargs='?',
+                           default= None,
+                           type= str, 
+                           help='Comma separated years list passed manually for testing')
 
     is_local_mode = bool(IS_LOCAL)
-
 
     args = argparser.parse_args()
 

@@ -15,7 +15,6 @@ env/
 dataset_local/
 *.csv
 
-
 # OS/editor noise
 .DS_Store
 Thumbs.db
@@ -37,3 +36,4 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
