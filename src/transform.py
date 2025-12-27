@@ -92,8 +92,8 @@ def run():
         year = year.strip()
 
         try:
-            record = transform_tocsv_load_to_gcs_bq(year)
-            combined_proccessed_records.extend(record)
+            processed_record = transform_tocsv_load_to_gcs_bq(year)
+            combined_proccessed_records.extend(processed_record)
         except Exception as e:
             logging.error(f'Failed to process for year {year}: {e}')
     

@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 #from src.config import GH_TOKEN
 
@@ -113,7 +114,8 @@ class cveExtractor():
             logging.error(f"Error fetching years: {e}")
             return []
 
-    # Method to get all information on CVE file entries for each year directory 
+    # Method to get all INFORMATION on CVE file entries for each year directory 
+    # year_data = {'year' : '1999', subdirs:{'1xxx' : [{'name: 'CVE-01-01-199', 'download_url': url},], '2xxx': [{},{}]}}
     def get_cve_files_for_year(self, year: str) -> Dict:
 
         # This is the main data structure to hold year data       
@@ -151,7 +153,7 @@ class cveExtractor():
                     logging.info(f"Requesting: {subdir_url}")
 
                     subdir_response = self.session.get(subdir_url, params=params)
-                    logging.info(f"Subdir response code: {subdir_response.status_code}")
+                    #logging.info(f"Subdir response code: {subdir_response.status_code}")
 
                     if self._handle_rate_limit(subdir_response):
                         subdir_response = self.session.get(subdir_url, params=params)
@@ -188,101 +190,98 @@ class cveExtractor():
         logging.info(f"✅ Summary: {total_files} total CVE files across {len(year_data['subdirs'])} subdirectories for {year} year added")
 
         return year_data
-
-
-    def extract_store_cve_data(self, year_data: Dict):
-
-        logging.info(f"🔍 Starting to process year data for {year_data['year']}...")
-
-        # We will use this list to batch uploads and csv entries
+    
+    def extract_single_cve_file(self, file: Dict = {}, year: str = ''):
+        file_name = file['name']
+        file_download_url = file['download_url']
 
         try:
-            year_processed_files = []
-            # Iterate thru each subdirectory
-            for subdir in year_data['subdirs']:
+            response = self.session.get(file_download_url)
 
-                logging.info(f"    - Processing subdirectory: {subdir}")
+            if self._handle_rate_limit(response=response):
+                response = self.session.get(file_download_url)
 
-                #Instantiating a subdir list as well
-                subdir_processed_files = []
-
-                # Iterate over each file in chosen subdirectory
-                for file in year_data['subdirs'][subdir]:
-
-                    file_name = file['name']
-                    download_url = file['download_url']
+            if response.status_code == 200:
+                logging.info(f'Successfully downloaded file: {file_name}')
+                cve_json = response.json()
+                if cve_json:
+                    cve_record = extract_cvedata(cve_json)
+                    cveId = cve_json.get('cveMetadata', {}).get('cveId', 'none')
+                    if not cveId.endswith('.json'):
+                            cveId += '.json'
                     
-                    try: 
-                        response = self.session.get(download_url)
-                    
-                        if self._handle_rate_limit(response):
-                            response = self.session.get(download_url)
+                    filename_string = f'{year}/{cveId}'
 
-                        if response.status_code == 200:
-                            logging.info(f"✅ Successfully downloaded {file_name}")
+                record_details = {
+                    'raw_json':cve_json,
+                    'extracted_cve_record': cve_record,
+                    'cveId': cveId,
+                    'filename_string': filename_string,
+                }
+                return record_details                   
+        except Exception as e:
+            logging.error(f'Failed to fetch file {file_name} from {file_download_url}: {e}')
+        
 
-                            try: 
-                                # This is the raw JSON file
-                                cve_data = response.json()
 
-                                # If raw CVE json exists
-                                if cve_data:
-                                    # appending extracted data from response
-                                    #record = self.extract_cve_data(cve_data)
+    def extract_store_cve_data(self, year_data: Dict = {}, maxworkers: int = 10):
 
-                                    # THIS IS THE MOST IMPORTANT
-                                    # WE ARE USING THE FUNCTION FROM PARSER.PY
-                                    record = extract_cvedata(cve_data)
-                                    #logging.info(f'This is record: {record}')
-                                    subdir_processed_files.append(record)
-                                    #logging.info(f'This is subdir right now: {subdir_processed_files}')
-                                    
-                                    # BLOB UPLOAD in cloud mode
-                                    if not self.islocal:
-                                        try:
-                                            # Immediately uploading to bucket if not local execution
-                                            cveId = cve_data.get('cveMetadata', {}).get('cveId', 'none') 
-                                            # Add extension if missing from cveId
-                                            if not cveId.endswith('.json'):
-                                                cveId += '.json'
-                                                
-                                            filename_string = f'{year_data["year"]}/{cveId}'
-                                            self.google_client.upload_blob(raw_json=cve_data, filename=filename_string)
-                                        except Exception as e:
-                                            logging.warning(f'Failed to upload {filename_string} to GCS bucket: {e}')
+        year = year_data['year']
+        logging.info(f" Starting to process year data for {year}...")
+        year_processed_files = []
+        gcs_batch_upload = []
 
-                            except json.JSONDecodeError as e:
-                                logging.error(f"❌ JSON parsing error for {file_name}: {e}")
-                    
+        try:
+            all_files = []
+            # Iterate over each subdir and files in those subdirectories
+            # Use .items() method to make it dict iterable
+            # Add all files to the year_processed_files by flattening using .extend()
+            for (subdir, files) in list(year_data['subdirs'].items()):
+                all_files.extend(files)
+
+            logging.info(f"Found {len(all_files)} files for the year {year} Processing them concurrently now...")
+
+            with ThreadPoolExecutor(max_workers=maxworkers) as executor:
+                # Creating a dict which returns extracted dict from self.extract_single_cve_file()
+                futures_dict = {
+                    executor.submit(self.extract_single_cve_file, file = file, year = year): file['name'] for file in all_files
+                }
+
+                for future in as_completed(futures_dict):
+                    try:
+                        # Untill the future is not executed in extract_single_cve_file this wont execute
+                        # It also returns the result for that thread from extract_single_cve_file
+                        record_details = future.result()
+
+                        if record_details:
+                            year_processed_files.append(record_details['extracted_cve_record'])
+
+                            if self.islocal == False:
+                                # Adding each file as dict to be later uploaded as a batch
+                                gcs_batch_upload.append({
+                                    'filename_string': record_details['filename_string'],
+                                    'raw_json': record_details['raw_json']
+                                })
                     except Exception as e:
-                        logging.error(f"❌ Error downloading {file_name}: {e}")
-                        import traceback
-            
-                        traceback.print_exc()
+                        logging.error(f'Failed to get record from {futures_dict[future]}: {e}')
 
-                if subdir_processed_files:
-                    #logging.info(f'Appending files from {subdir} to {year_data['year']} processing list')
-                    #logging.info(f'This is the subdir: {subdir_processed_files}')
-
-                    # Flattening the year_processed array by using extend  
-                    year_processed_files.extend(subdir_processed_files)
+            logging.info(f'Successfully processed {len(all_files)} files for the year {year}')
 
         except Exception as e:
-            logging.error(f"❌ Unexpected error in extract_store_cve_data: {e}")
-            import traceback
-            traceback.print_exc()
+            logging.info(f'Failed to process files for year {year}')
 
-        
+        # Adding to local storage if not cloud mode
         if year_processed_files:
-            #logging.info(f'This is the year_processed_files list: {year_processed_files}')
-            # Local path: Create a csv file in the local dataset for internal storage
-            if self.islocal:
-                self.year_to_csv(year_processed_files, year=year_data['year'])
+            # If not local batch upload to gcs
+            if self.islocal == False and gcs_batch_upload:
+                for item in gcs_batch_upload:
+                    self.google_client.upload_blob(
+                        raw_json = item['raw_json'],
+                        filename = item['filename_string']
+                    )
+            # Else just upload to local storage
             else:
-                # Since we have separated the transform logic we will trigger it in the dag 
-                # Which will be scheduled to run after this extract script has been run for all the years
-                pass
-     
+                self.year_to_csv(year_processed_files=year_processed_files, year= year)
         return None
     
     def year_to_csv(self, year_processed_files: List, year):
