@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logging.basicConfig(level=logging.INFO)
 
-def create_combined_table(combined_processed_records: Dict = {}):
+def create_combined_staging_table(combined_processed_records: Dict = {}):
     if not combined_processed_records:
         logging.error(f'There are no files to process!')
     else:
@@ -39,7 +39,7 @@ def extract_cvedata_from_filepath(filepath: str=''):
         logging.error(f'Error opening file {filepath}: {e}')
 
 def transform_tocsv_load_to_gcs_bq(year: str = '1999') -> List[Dict]:
-    logging.info(f'Transforming raw json to csv for year: {year}')
+    logging.info(f'Transforming raw json to processed python objects for year: {year}')
 
     gc = GoogleClient()
     storage_client = gc.storage_client
@@ -80,7 +80,7 @@ def transform_tocsv_load_to_gcs_bq(year: str = '1999') -> List[Dict]:
 
     processed_records =[]
 
-    with ThreadPoolExecutor(max_workers=25) as executor:
+    with ThreadPoolExecutor(max_workers=50) as executor:
         futures_records = {
             executor.submit(extract_cvedata_from_filepath, filepath=file_path):
             file_path for (blob_name, file_path) in downloaded_records
@@ -105,9 +105,6 @@ def transform_tocsv_load_to_gcs_bq(year: str = '1999') -> List[Dict]:
 def run():
     # Creating a argument parser using the argparse library
     argparser = argparse.ArgumentParser(description= 'Transform raw CVE json text files to structured BigQuery tables')
-
-    # adding years flag arugument to the argument parser
-    #argparser.add_argument('--years', action='store_true', help='Pass years thru comma separated input. If not, get years from cve-raws-bucket bucket')
 
     # Adding years list argument for custom 
     argparser.add_argument('years', 
@@ -135,12 +132,14 @@ def run():
             processed_records= transform_tocsv_load_to_gcs_bq(year)
             #logging.info(f'These are the processed records for {year}: {processed_records}')
 
+
             combined_proccessed_records.extend(processed_records)
         except Exception as e:
             logging.error(f'Failed to process for year {year}: {e}')
     
     if combined_proccessed_records:
-        create_combined_table(combined_processed_records=combined_proccessed_records)
+        #print(f'This is part of the combined processed records that will be used to create the staging table: {combined_proccessed_records[:10]}')
+        create_combined_staging_table(combined_processed_records=combined_proccessed_records)
     else:
         logging.warning(f'Error creating combined table!')
 

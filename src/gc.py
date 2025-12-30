@@ -187,7 +187,9 @@ class GoogleClient():
             table_id = f'cve_combined_staging_table'
             table_ref = f'{dataset_id}.{table_id}'
             try:
-                self.bigquery_client.get_table(table_ref)
+                table = self.bigquery_client.get_table(table_ref)
+                if table:
+                    logging.info(f'The table {table.table_id} already exists in {table.dataset_id}!')
             except Exception:
                 logging.error(f'Staging table {table_ref} does not exist. Attempting to create it...')
                 # Defining the new table object
@@ -206,7 +208,7 @@ class GoogleClient():
             # Inserting data into the staging table
             rows_to_insert = files                    
             fill_errors = self.bigquery_client.insert_rows_json(
-                table = new_table,
+                table = table_ref,
                 json_rows= rows_to_insert
             )
 
