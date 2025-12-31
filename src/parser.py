@@ -152,6 +152,29 @@ def vector_string_to_metrics(cve_entry_template,vector_string: str) -> Dict[str,
     
     return cve_entry_template 
 
+# Helper function to parse date time string values to clean them and convert them using suitable datetime string formats
+def parse_cve_datetime_strings(dt_string: str = '', column_value: str = ''):
+    # Step1: Check for extra Z charcter
+    str_list = list(dt_string)
+
+    if 'Z' or 'z' in str_list:
+        dt_string= dt_string[:-1]
+    
+    #Step2: use the correct format and return a strptime dt object
+    formats = [
+        '%Y-%m-%dT%H:%M:%S.%f',  # With microseconds
+        '%Y-%m-%dT%H:%M:%S', #Without microseconds
+        '%Y-%m-%d' # Only date
+    ]
+
+    for format in formats:
+        try:
+            dt_object = datetime.strptime(dt_string, format)
+            return dt_object
+        except Exception as e:
+            #logging.error(f'Format error when processing date time for {column_value} trying the next format: {e} ')
+            continue
+
 def extract_cvedata (cve_data_json: Dict = {}):
     
     try:
@@ -160,13 +183,14 @@ def extract_cvedata (cve_data_json: Dict = {}):
             #Extract CVE Id, date publsihed and date updated values
             cve_entry_template['cve_id'] = cve_id
 
-            dt_format =  '%Y-%m-%dT%H:%M:%S'
+            # Passing datepublished to helper method so we can get isoformat timestamp
             published_date_string = cve_data_json.get('cveMetadata', {}).get('datePublished', '')
-            dt_object = datetime.strptime(date_string=published_date_string, format = dt_format)
-            cve_entry_template['published_date'] = dt_object.isoformat()
+            pdt_object = parse_cve_datetime_strings(dt_string=published_date_string, column_value='datePublished')
+            cve_entry_template['published_date'] = pdt_object.isoformat()
 
+            # Passing dateUpdated to helper method so we can get isoformat timestamp
             updated_date_string = cve_data_json.get('cveMetadata', {}).get('dateUpdated', '')
-            udt_object = datetime.strptime(data_string = updated_date_string, format= dt_format)
+            udt_object = parse_cve_datetime_strings(dt_string=updated_date_string, column_value='dateUpdated')
             cve_entry_template['updated_date'] = udt_object.isoformat()
 
             # 2. FINDING THE ADP CONTAINER FROM TOP LEVEL 'CONTAINERS' CONTAINER
@@ -263,9 +287,8 @@ def extract_cvedata (cve_data_json: Dict = {}):
                                 # For the other container with type ssvvc
                                 if type_other =='ssvc':
                                     ssvc_time_string = content_other.get('timestamp', '')
-                                    ssvc_time_object = datetime.strptime(format = dt_format, date_string=ssvc_time_string)
-
-                                    cve_entry_template['ssvc_timestamp']  = ssvc_time_object.isoformat()
+                                    sssvc_dt_object = parse_cve_datetime_strings(dt_string=ssvc_time_string, column_value='ssvc_timestamp')
+                                    cve_entry_template['ssvc_timestamp']  = sssvc_dt_object.isoformat()
 
                                     options = content_other.get('options', [])
 
@@ -288,7 +311,7 @@ def extract_cvedata (cve_data_json: Dict = {}):
                                 elif type_other == 'kev':
                                     cve_entry_template['cisa_kev'] = True
                                     kev_date_string = content_other.get('dateAdded', '')
-                                    kdt_object = datetime.strptime(format=dt_format, date_string =kev_date_string )
+                                    kdt_object = parse_cve_datetime_strings(kev_date_string)
                                     cve_entry_template['cisa_kev_date'] =kdt_object.date().isoformat()
 
                     # 2.2.2. Finding the problem types container in the CISA ADP container
