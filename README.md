@@ -5,6 +5,8 @@ This project implements a production-grade ETL (Extract, Transform, Load) pipeli
 
 The pipeline handles 120,000+ raw JSON vulnerability records, transforms them into structured formats, and stores them in a data lake for storage and data warehouse architecture.
 
+--- 
+
 ## __Project Architecture__
 
 ### _System Components_
@@ -18,6 +20,8 @@ The pipeline operates on a GCP Compute Engine VM (e2-medium) with 2 vCPUs, 4GB R
 - Extracts raw jsons for cve records from CISA Vulnrichment github repository via REST API
 - Parallelly extract raw JSONs using ThreadPoolExecutor threads in a two-stage process
 - Insert raw JSONs into Google Cloud Storage (GCS) buckets  
+
+![CISA CVE Vulnrichment ETL Data pipeline architecture](etl_pipeline.png) 
 
 2. _Stage 2_: __Transform raw data to structured BigQuery table__
 
