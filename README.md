@@ -26,12 +26,12 @@ The pipeline operates on a GCP Compute Engine VM (e2-medium) with 2 vCPUs, 4GB R
 - _Runtime_: Python 3.11 with Docker Compose for containerization
 
 ### _Data Flow_
-1. __Stage 1: Extract raw cve JSONS into GCS data lake__
+Stage 1: __Extract raw cve JSONS into GCS data lake__
 - Extracts raw jsons for cve records from CISA Vulnrichment github repository via REST API
 - Parallelly extract raw JSONs using ThreadPoolExecutor threads in a two-stage process
 - Insert raw JSONs into Google Cloud Storage (GCS) buckets  
 
-2. __Stage 2: Transform raw data and load to BigQuery data warehouse__
+Stage 2: __Transform raw data and load to BigQuery data warehouse__
 - Retrives raw JSONs from data lake and transforms into into flattened, structured records
 - Employs Transfer Manager with 10-15 workers to create preliminary staging table
 - Merges staging table with final table and loads into BigQuery data warehouse
