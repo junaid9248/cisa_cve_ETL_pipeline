@@ -9,15 +9,15 @@ The pipeline handles 120,000+ raw JSON vulnerability records, transforms them in
 
 ### _Technology Stack_
 - __Data Engineering Tools__
-    -_Apache Airflow (v2.9.3)_: Workflow orchestration and scheduling
-    -_PostgreSQL_: Metadata database for Airflow state management
-    -_Docker (Compose)_: Containerization and service management
-    -_Python (v3.11)_:  Core programming language for data processing
+    - _Apache Airflow (v2.9.3)_: Workflow orchestration and scheduling
+    - _PostgreSQL_: Metadata database for Airflow state management
+    - _Docker (Compose)_: Containerization and service management
+    - _Python (v3.11)_:  Core programming language for data processing
 
 - __Google Cloud Platform (GCP)__
-    -_Google Cloud Storage_: Data lake for raw CVE JSON files
-    -_BigQuery_: Data warehouse for structured vulnerability records
-    -_Compute Engine_: VM hosting the Airflow orchestration platform
+    - _Google Cloud Storage_: Data lake for raw CVE JSON files
+    - _BigQuery_: Data warehouse for structured vulnerability records
+    - _Compute Engine_: VM hosting the Airflow orchestration platform
 
 ### _System Components_
 The pipeline operates on a GCP Compute Engine VM (e2-medium) with 2 vCPUs, 4GB RAM running Ubuntu 22.04, and consists of three primary layers:
