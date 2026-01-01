@@ -51,22 +51,40 @@ Install and configure neccesary services:
 
 ### Installation Steps
 1. Clone repository from master branch
-```bash
+```sh
     git clone https://github.com/junaid9248/cisa_cve_elt_pipeline master
 ```
 
 2. Install python dependencies using pip manager
-```bash
+```sh
     cd cisa_cve_elt_pipeline
     pip install -r requirements.txt
 ```
 
 3. Create a .env file in root directory
-
-```bash
+```sh
     touch .env
-    nano .env
 ```
+
+5. Fill the .env with your secrets
+- Create a source.txt file with the following environment variables and set your values:
+```python
+#source.txt
+IS_LOCAL  =  #boolean for cloud or local mode operation
+GCLOUD_PROJECTNAME = #String value of project name on GCP
+GH_TOKEN = # String value of GitHub developer token for increased bandwidth
+GCLOUD_BUCKETNAME = # String value of bucket name in Cloud Storage
+GOOGLE_APPLICATION_CREDENTIALS = # String value for path to GCP service account credentials 
+MY_EMAIL = # String value for apache webserver email
+AIRFLOW__WEBSERVER__SECRET_KEY = # String value for common apache airflow webserver and scheduler secret key
+```
+- Fill existing .env file from source.txt
+```sh
+    cat source.txt > .env
+```
+
+
+
 
 
 
