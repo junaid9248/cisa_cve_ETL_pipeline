@@ -9,15 +9,15 @@ The pipeline handles 120,000+ raw JSON vulnerability records, transforms them in
 
 ### _Technology Stack_
 - __Data Engineering Tools__
-    - _Apache Airflow (v2.9.3)_: Workflow orchestration and scheduling
-    - _PostgreSQL_: Metadata database for Airflow state management
-    - _Docker (Compose)_: Containerization and service management
-    - _Python (v3.11)_:  Core programming language for data processing
+    - ***Apache Airflow (v2.9.3)***: Workflow orchestration and scheduling
+    - ***PostgreSQL***: Metadata database for Airflow state management
+    - ***Docker (Compose)***: Containerization and service management
+    - ***Python (v3.11)***:  Core programming language for data processing
 
 - __Google Cloud Platform (GCP)__
-    - _Google Cloud Storage_: Data lake for raw CVE JSON files
-    - _BigQuery_: Data warehouse for structured vulnerability records
-    - _Compute Engine_: VM hosting the Airflow orchestration platform
+    - ***Google Cloud Storage***: Data lake for raw CVE JSON files
+    - ***BigQuery***: Data warehouse for structured vulnerability records
+    - ***Compute Engine***: VM hosting the Airflow orchestration platform
 
 ### _System Components_
 The pipeline operates on a GCP Compute Engine VM (e2-medium) with 2 vCPUs, 4GB RAM running Ubuntu 22.04, and consists of three primary layers:
@@ -39,6 +39,34 @@ The pipeline operates on a GCP Compute Engine VM (e2-medium) with 2 vCPUs, 4GB R
 
 ![CISA CVE Vulnrichment ETL Data pipeline architecture](etl_pipeline.png) 
 
+
+## __Getting Started__
+### Prerequisites
+Install and configure neccesary services:
+1. Python 3.11 environment
+2. Google Cloud Platform account with enabled services (GCS, BigQuery, Compute Engine)
+3. GCP service account credentials with appropriate IAM permissions
+4. Docker and Docker Compose
+5. Pip package manager
+
+### Installation Steps
+1. Clone repository from master branch
+```bash
+    git clone https://github.com/junaid9248/cisa_cve_elt_pipeline master
+```
+
+2. Install python dependencies using pip manager
+```bash
+    cd cisa_cve_elt_pipeline
+    pip install -r requirements.txt
+```
+
+3. Create a .env file in root directory
+
+```bash
+    touch .env
+    nano .env
+```
 
 
 
