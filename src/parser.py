@@ -3,48 +3,6 @@ from datetime import datetime
 import logging
 
 
-cve_entry_template={
-
-            'cve_id': '',
-            'published_date': None,
-            'updated_date': None,
-
-            'cisa_kev': False,
-            'cisa_kev_date': None,
-
-            #Cvss v3.1 and 4.0 (partial) metrics
-            'cvss_version': None,
-            'base_score': None,
-            'base_severity': '',
-            'attack_vector': '',
-            'attack_complexity': '',
-            'privileges_required': '',
-            'user_interaction': '',
-            'scope': '',
-            'confidentiality_impact': '',
-            'integrity_impact': '',
-            'availability_impact': '',
-
-            #SSVC metrics
-            'ssvc_timestamp': None,
-            'ssvc_exploitation': None,
-            'ssvc_automatable': '',
-            'ssvc_technical_impact': '',
-            'ssvc_decision': '',  
-            
-            #'exploitability_score': '',
-            #'impact_score': '',
-            #'epss_score': '',
-            #'epss_percentile': '',           
-
-            'impacted_vendor': '',
-            'impacted_products': [],
-            'vulnerable_versions': [],
-
-            'cwe_number': '',
-            'cwe_description': '',
-
-        }
 #Helper function to calculate SSVC score 
 def calculate_ssvc_score(exploitation: str, automatable: str, technical_impact: str) -> str:
     # Normalize inputs to lowercase
@@ -153,14 +111,23 @@ def vector_string_to_metrics(cve_entry_template,vector_string: str) -> Dict[str,
     return cve_entry_template 
 
 # Helper function to parse date time string values to clean them and convert them using suitable datetime string formats
-def parse_cve_datetime_strings(dt_string: str = '', column_value: str = ''):
-    # Step1: Check for extra Z charcter
+def parse_cve_datetime_strings(dt_string: str, column_value: str = '', cve_id: str = ''):
+    
+    # Step 0: If it is the kevdateadded then print
+    if column_value == 'kevdateAdded':
+        logging.info(f'This is the kev date added string: {dt_string}')
+    # Return if noneType
+    if not dt_string:
+        logging.info(f'None type value detected for {cve_id} record, returning back')
+        return None
+
+    # Step 1: Check for extra Z charcter
     str_list = list(dt_string)
 
     if 'Z' or 'z' in str_list:
         dt_string= dt_string[:-1]
     
-    #Step2: use the correct format and return a strptime dt object
+    #Step 2: use the correct format and return a strptime dt object
     formats = [
         '%Y-%m-%dT%H:%M:%S.%f',  # With microseconds
         '%Y-%m-%dT%H:%M:%S', #Without microseconds
@@ -170,12 +137,55 @@ def parse_cve_datetime_strings(dt_string: str = '', column_value: str = ''):
     for format in formats:
         try:
             dt_object = datetime.strptime(dt_string, format)
+            logging.info(f'This is being returned as dt_object for {column_value} and CVE ID {cve_id}: {dt_object}')
             return dt_object
         except Exception as e:
             #logging.error(f'Format error when processing date time for {column_value} trying the next format: {e} ')
             continue
 
 def extract_cvedata (cve_data_json: Dict = {}):
+    cve_entry_template={
+
+            'cve_id': '',
+            'published_date': None,
+            'updated_date': None,
+
+            'cisa_kev': False,
+            'cisa_kev_date': None,
+
+            #Cvss v3.1 and 4.0 (partial) metrics
+            'cvss_version': None,
+            'base_score': None,
+            'base_severity': '',
+            'attack_vector': '',
+            'attack_complexity': '',
+            'privileges_required': '',
+            'user_interaction': '',
+            'scope': '',
+            'confidentiality_impact': '',
+            'integrity_impact': '',
+            'availability_impact': '',
+
+            #SSVC metrics
+            'ssvc_timestamp': None,
+            'ssvc_exploitation': None,
+            'ssvc_automatable': '',
+            'ssvc_technical_impact': '',
+            'ssvc_decision': '',  
+            
+            #'exploitability_score': '',
+            #'impact_score': '',
+            #'epss_score': '',
+            #'epss_percentile': '',           
+
+            'impacted_vendor': '',
+            'impacted_products': [],
+            'vulnerable_versions': [],
+
+            'cwe_number': '',
+            'cwe_description': '',
+
+        }
     
     try:
         # 1. FINDING TOP LEVEL METADATA CONTAINER
@@ -185,12 +195,12 @@ def extract_cvedata (cve_data_json: Dict = {}):
 
             # Passing datepublished to helper method so we can get isoformat timestamp
             published_date_string = cve_data_json.get('cveMetadata', {}).get('datePublished', '')
-            pdt_object = parse_cve_datetime_strings(dt_string=published_date_string, column_value='datePublished')
+            pdt_object = parse_cve_datetime_strings(dt_string=published_date_string, column_value='datePublished', cve_id = cve_id)
             cve_entry_template['published_date'] = pdt_object.isoformat()
 
             # Passing dateUpdated to helper method so we can get isoformat timestamp
             updated_date_string = cve_data_json.get('cveMetadata', {}).get('dateUpdated', '')
-            udt_object = parse_cve_datetime_strings(dt_string=updated_date_string, column_value='dateUpdated')
+            udt_object = parse_cve_datetime_strings(dt_string=updated_date_string, column_value='dateUpdated', cve_id = cve_id)
             cve_entry_template['updated_date'] = udt_object.isoformat()
 
             # 2. FINDING THE ADP CONTAINER FROM TOP LEVEL 'CONTAINERS' CONTAINER
@@ -271,7 +281,7 @@ def extract_cvedata (cve_data_json: Dict = {}):
 
                                 if missing_metrics:
                                     cvss_vector_string = metric[version_key].get('vectorString', '')
-                                    logging.warning(f"⚠️ Missing CVSS {version_key} metrics for {cve_id}: {missing_metrics} in ADP container")
+                                    logging.warning(f" Missing CVSS {version_key} metrics for {cve_id}: {missing_metrics} in ADP container")
 
                                     if cvss_vector_string:
                                         vector_string_to_metrics(cve_entry_template ,cvss_vector_string)
@@ -287,7 +297,7 @@ def extract_cvedata (cve_data_json: Dict = {}):
                                 # For the other container with type ssvvc
                                 if type_other =='ssvc':
                                     ssvc_time_string = content_other.get('timestamp', '')
-                                    sssvc_dt_object = parse_cve_datetime_strings(dt_string=ssvc_time_string, column_value='ssvc_timestamp')
+                                    sssvc_dt_object = parse_cve_datetime_strings(dt_string=ssvc_time_string, column_value='ssvc_timestamp', cve_id = cve_id)
                                     cve_entry_template['ssvc_timestamp']  = sssvc_dt_object.isoformat()
 
                                     options = content_other.get('options', [])
@@ -311,8 +321,13 @@ def extract_cvedata (cve_data_json: Dict = {}):
                                 elif type_other == 'kev':
                                     cve_entry_template['cisa_kev'] = True
                                     kev_date_string = content_other.get('dateAdded', '')
-                                    kdt_object = parse_cve_datetime_strings(kev_date_string)
-                                    cve_entry_template['cisa_kev_date'] =kdt_object.date().isoformat()
+                                    kdt_object = parse_cve_datetime_strings(kev_date_string, 'kevdateAdded', cve_id=cve_id)
+                                    
+                                    if kdt_object:
+                                        logging.info(f'This is kdt_object for cve record - {cve_id}: {kdt_object}')
+                                        cve_entry_template['cisa_kev_date'] = kdt_object.date().isoformat()
+                                    else:
+                                        cve_entry_template['cisa_kev_date'] = None
 
                     # 2.2.2. Finding the problem types container in the CISA ADP container
                     if cisa_adp_vulnrichment_problem_container:
@@ -393,8 +408,8 @@ def extract_cvedata (cve_data_json: Dict = {}):
                             if version_key1 in valid_versions:
                                 # Extracting the CVSS  metrics
                                 cve_entry_template['cvss_version'] = float(metric[version_key1].get('version', '1.1')) 
-                                cve_entry_template['base_score']  = float(metric[version_key1].get('baseSeverity', '0.0'))
-                                cve_entry_template['base_severity'] = metric[version_key1].get('baseScore', '')
+                                cve_entry_template['base_score']  = float(metric[version_key1].get('baseScore', '0.0'))
+                                cve_entry_template['base_severity'] = metric[version_key1].get('baseSeverity', '')
                                 cvss_vector_string = metric[version_key1].get('vectorString', '')
                                 
                                 # Extract individual metrics if available
@@ -425,7 +440,7 @@ def extract_cvedata (cve_data_json: Dict = {}):
 
                                 if missing_metrics:
                                     # Handle missing metrics (e.g., log a warning)
-                                    print(f"⚠️ Missing CVSS {version_key1} metrics for {cve_id}: {missing_metrics} in the metrics container")
+                                    print(f" Missing CVSS {version_key1} metrics for {cve_id}: {missing_metrics} in the metrics container")
 
                                     if cvss_vector_string:
                                         vector_string_to_metrics(cve_entry_template ,cvss_vector_string)
@@ -445,7 +460,7 @@ def extract_cvedata (cve_data_json: Dict = {}):
                                 cve_entry_template['cwe_description'] = description.get('description', '')
                                 break
 
-                logging.info(f"✅ Successfully extracted data for {cve_id}")
+                logging.info(f" Successfully extracted data for {cve_id}")
                 return cve_entry_template
 
 

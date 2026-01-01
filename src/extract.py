@@ -339,7 +339,7 @@ class cveExtractor():
                 response = self.session.get(download_url)
 
             if response.status_code == 200:
-                logging.info(f"✅ Successfully downloaded {file_name}")
+                logging.info(f"Successfully downloaded {file_name}")
                 cve_data = response.json()
 
                 extracted_data = self.extract_cve_data(cve_data)

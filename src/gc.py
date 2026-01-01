@@ -22,8 +22,8 @@ year_table_schema = [
                     bigquery.SchemaField(name = 'cve_id', field_type = 'STRING', mode='REQUIRED', description='Unique CVE identifier'),
                     bigquery.SchemaField("published_date", "TIMESTAMP", description="Date first published"),
                     bigquery.SchemaField("updated_date", "TIMESTAMP", description="Latest date updated"),
-                    bigquery.SchemaField('cisa_kev','BOOLEAN', description='If appeared in CISA KEV catalog'),
-                    bigquery.SchemaField('cisa_kev_date', 'DATE', description='Date appeared in CISA KEV catalog'),
+                    bigquery.SchemaField('cisa_kev','BOOLEAN',mode='REQUIRED', description='If appeared in CISA KEV catalog'),
+                    bigquery.SchemaField('cisa_kev_date', 'DATE', mode='NULLABLE',description='Date appeared in CISA KEV catalog'),
 
                     bigquery.SchemaField('cvss_version', 'FLOAT', description='CVSS version recorded'),
 
@@ -190,6 +190,11 @@ class GoogleClient():
                 table = self.bigquery_client.get_table(table_ref)
                 if table:
                     logging.info(f'The table {table.table_id} already exists in {table.dataset_id}!')
+
+                    # Truncating the table before inserting new data for cleaner data
+                    truncate_sql = f"TRUNCATE TABLE `{table_ref}`"
+                    self.bigquery_client.query(truncate_sql).result()
+                    logging.info("Truncated staging table before insert: %s", table_ref)
             except Exception:
                 logging.error(f'Staging table {table_ref} does not exist. Attempting to create it...')
                 # Defining the new table object
@@ -200,11 +205,6 @@ class GoogleClient():
 
                 logging.info(f'Successfully created table: {updated_table.table_id} in dataset folder {updated_table.dataset_id}')
             
-            # Truncating the table before inserting new data for cleaner data
-            truncate_sql = f"TRUNCATE TABLE `{table_ref}`"
-            self.bigquery_client.query(truncate_sql).result()
-            logging.info("Truncated staging table before insert: %s", table_ref)
-
             # Inserting data into the staging table
             rows_to_insert = files  
 
@@ -214,7 +214,8 @@ class GoogleClient():
             # Configuring the load job with the source format as the newline delimited json
             job_config =bigquery.LoadJobConfig(
                 source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-                autodetect = True
+                schema = year_table_schema,
+                write_disposition=bigquery.WriteDisposition.WRITE_APPEND
             )
 
             # Starting the load job which loads all files from created bytes file into the table
@@ -228,20 +229,6 @@ class GoogleClient():
             load_job.result()
             logging.info(f'Load job finished. Successfully loaded {table_ref} table.')
 
-            '''          
-            fill_errors = self.bigquery_client.insert_rows_json(
-                table = table_ref,
-                json_rows= rows_to_insert
-            )
-
-            if fill_errors:
-                logging.error(f'Error while filling rows for table {table_ref}: {fill_errors}')
-
-                # Return obj is a list of errors. Each element has propert
-                for error in fill_errors:
-                    logging.warning(f'Error inserting: {error}')
-            else:
-                logging.info(f'Successfully inserted rows for table: {table_ref}')'''
 
     def combined_final_table_bigquery(self, query: str = '', year: Optional[str] = 'combined_final'):
 
