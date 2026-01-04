@@ -441,6 +441,7 @@ class cveExtractor():
                 # or can be the custom list of years for testing
                 year_data = self.get_cve_files_for_year(year)
                 self.extract_store_cve_data(year_data)
+                #orint
 
 
 
