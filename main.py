@@ -1,6 +1,6 @@
 import logging
 import argparse
-from src.extract import cveExtractor
+from src.extract2 import cveExtractor
 from src.config import IS_LOCAL
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

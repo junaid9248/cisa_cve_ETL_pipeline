@@ -1,5 +1,5 @@
-from google.cloud import storage, bigquery, exceptions
-from google.cloud.storage import transfer_manager
+from google.cloud import bigquery, exceptions
+from google.cloud.storage import transfer_manager, Client
 from google.oauth2 import service_account
 
 import os
@@ -54,6 +54,14 @@ year_table_schema = [
 
                     bigquery.SchemaField('cwe_number', 'STRING', description='CWE description number'),
                     bigquery.SchemaField('cwe_description', 'STRING', description='Description of CWE')]
+
+raws_table_schema = [
+    bigquery.SchemaField(name = 'cveId', field_type = 'STRING', mode='REQUIRED', description='Unique CVE identifier'),
+    bigquery.SchemaField(name = 'year', field_type = 'INT64', mode='REQUIRED', description='Year of CVE entry'),
+    bigquery.SchemaField(name= 'filename_string', field_type='STRING', mode='REQUIRED', description='String URI ro retrive raw json from GCS bucket'),
+    bigquery.SchemaField(name='raw_json',field_type='STRING', mode= 'REQUIRED', description='String of raw cve json file')
+]
+
 class GoogleClient():
 
     def __init__(self, bucket_name: str = GCLOUD_BUCKETNAME, credentials_path: Optional[str] = GOOGLE_APPLICATION_CREDENTIALS):
@@ -62,7 +70,7 @@ class GoogleClient():
         self.credentials = service_account.Credentials.from_service_account_file(credentials_path)
 
         #Defining the google storage client and bigquery client with credentials and project id 
-        self.storage_client = storage.Client(credentials=self.credentials, project= self.projectID)
+        self.storage_client = Client(credentials=self.credentials, project= self.projectID)
         self.bigquery_client = bigquery.Client(credentials=self.credentials, project=self.projectID)
         
         self.bucket_name = bucket_name
@@ -70,77 +78,15 @@ class GoogleClient():
         # Retrieving the bucket through it's name 
         self.bucket= self.storage_client.bucket(self.bucket_name) 
 
-    def upload_blob(self, raw_json, filename):
+    def upload_blob(self, blobname: str ='', local_filepath: Optional[str] = ''):
         try:
-            blob = self.bucket.blob(blob_name = filename)
-
-            blob.upload_from_string(json.dumps(raw_json))
-            logging.info(f'Uploaded {filename} to {self.bucket_name}')
+            blob = self.bucket.blob(blob_name = blobname)
+        
+            if local_filepath:
+                blob.upload_from_filename(filename=local_filepath)
+                logging.info(f'Successfully uploaded file from {local_filepath} to {self.bucket_name}')
         except Exception as e:
-            logging.error(f'Failed to upload {filename} to {self.bucket_name}: {e}')
-
-    def upload_many_blobs(self, upload_list: List = [], max_workers=50):
-        """
-        Upload many blobs concurrently using Transfer Manager
-        
-        upload_list: List of dicts with 'filename_string' and 'raw_json' keys
-        """
-        if not upload_list:
-            logging.warning("No files to upload")
-            return {'success': 0, 'failed': 0}
-        
-        try:
-            upload_pairs = []
-            
-            for data in upload_list:
-                
-                json_data = json.dumps(data['raw_json']).encode('UTF-8')
-                f = io.BytesIO(json_data)
-                
-                f.seek(0)
-                
-                blob = self.bucket.blob(blob_name=data['filename_string'])
-                upload_pairs.append((f, blob))
-            
-            logging.info(f"Starting batch upload of {len(upload_pairs)} concurrently")
-            
-        
-            results = transfer_manager.upload_many(
-                worker_type=transfer_manager.THREAD,
-                max_workers=max_workers,
-                file_blob_pairs=upload_pairs
-            )
-            
-            # Check results
-            success_count = 0
-            failed_count = 0
-            
-            for i, result in enumerate(results):
-                blob_name = upload_list[i]['filename_string']
-                
-                if isinstance(result, Exception):
-                    failed_count += 1
-                    logging.error(f"Failed to upload {blob_name}: {result}")
-                else:
-                    success_count += 1
-            
-            logging.info(f"✅ Upload complete: {success_count} succeeded, {failed_count} failed")
-            
-            return {
-                'success': success_count,
-                'failed': failed_count,
-                'total': len(upload_list)
-            }
-            
-        except Exception as e:
-            logging.error(f"❌ Batch upload failed with exception: {e}")
-            return {
-                'success': 0,
-                'failed': len(upload_list),
-                'total': len(upload_list),
-                'error': str(e)
-            }
-
+            logging.error(f'Failed to upload {blobname} to {self.bucket_name}: {e}')
 
 
     def csv_to_bucket(self, year_data, year: str = ''):
@@ -164,7 +110,68 @@ class GoogleClient():
             logging.warning(f'Failed to upload {year} csv to GCS bucket {self.bucket_name}: {e}')
     
 
-    def combined_staging_table_bigquery(self, files :List= [], year: Optional[str] = 'combined_staging'):
+    def create_fill_raws_table(self, source_uri: str= '', isTruncated: bool = True, year: str = ''):
+        dataset_id = f'{self.projectID}.cve_all'
+        dataset_exists = False
+
+        try:               
+            #Create a bigquery dataset object
+            dataset = bigquery.Dataset(dataset_id)
+            dataset.location = 'US'
+
+            dataset = self.bigquery_client.create_dataset(dataset=dataset, exists_ok=True ,timeout=30)
+            if dataset:
+                logging.info(f'Successfully created: {dataset.dataset_id} in {self.bigquery_client.project}')
+                dataset_exists = True
+        except Exception as e:
+            logging.warning(f'Error creating dataset: {e}')
+
+        if dataset_exists:
+            table_id = 'cve_raws_table'
+            table_ref = f'{dataset_id}.{table_id}'
+
+        
+            table = self.bigquery_client.get_table(table_ref)
+            try:
+                if table:
+                    
+                    if isTruncated is False:
+                        logging.info(f'Table already exists. Truncating it before first entry...')
+
+                        truncate_query = f'''
+                        TRUNCATE TABLE {table_ref}'''
+                        query_job = self.bigquery_client.query(truncate_query)
+                        query_job.result()
+                        logging.info(f'Truncated {table_ref} successfully!')
+                else:
+                    logging.info(f'Table {table_ref} does not exists! Atttempting to create it now...')
+                    new_table = bigquery.Table(table_ref, schema=raws_table_schema)
+                    self.bigquery_client.create_table(table=new_table, exists_ok=True)
+                    updated_table = self.bigquery_client.update_table(table, fields=['schema'])
+            
+                    logging.info(f'Successfully created table: {updated_table.table_id} in dataset folder {updated_table.dataset_id}')
+            except Exception as e:
+                logging.info(f'Failed to resolved table {table_ref}: {e}')
+
+        load_job_config = bigquery.LoadJobConfig(
+            schema = raws_table_schema,
+            source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+            write_disposition= bigquery.WriteDisposition.WRITE_APPEND
+        )
+
+        load_job = self.bigquery_client.load_table_from_uri(
+            source_uris= source_uri,
+            job_config= load_job_config,
+            destination= table_ref,
+            location='US'
+        )
+
+        load_job.result()
+        logging.info(f'Load job succesful for year {year} on {table_ref}')
+
+
+
+    def combined_staging_table_bigquery(self, gcs_uri: str = '', year: Optional[str] = 'combined_staging', did_truncate: bool = False):
 
         dataset_id = f'{self.projectID}.cve_all'
         dataset_exists = False
@@ -184,17 +191,19 @@ class GoogleClient():
     
         # If dataset exists proceeding with table creation or update
         if dataset_exists:
-            table_id = f'cve_{year}_table'
+            table_id = f'cve_combined_staging_table'
             table_ref = f'{dataset_id}.{table_id}'
             try:
                 table = self.bigquery_client.get_table(table_ref)
                 if table:
                     logging.info(f'The table {table.table_id} already exists in {table.dataset_id}!')
 
-                    # Truncating the table before inserting new data for cleaner data
-                    truncate_sql = f"TRUNCATE TABLE `{table_ref}`"
-                    self.bigquery_client.query(truncate_sql).result()
-                    logging.info("Truncated staging table before insert: %s", table_ref)
+                    if did_truncate == False:
+                        logging.info("Truncated staging table before first insertion: %s", table_ref)
+                        # Truncating the table before inserting new data for cleaner data
+                        truncate_sql = f"TRUNCATE TABLE `{table_ref}`"
+                        self.bigquery_client.query(truncate_sql).result()
+                    
             except Exception:
                 logging.error(f'Staging table {table_ref} does not exist. Attempting to create it...')
                 # Defining the new table object
@@ -206,10 +215,7 @@ class GoogleClient():
                 logging.info(f'Successfully created table: {updated_table.table_id} in dataset folder {updated_table.dataset_id}')
             
             # Inserting data into the staging table
-            rows_to_insert = files  
-
-            #Creating a newline delimited JSON from the list of raw cve json dicts
-            files_in_bytes = io.BytesIO(b'\n'.join(json.dumps(row).encode('UTF-8') for row in rows_to_insert))
+            upload_from_uri = gcs_uri
 
             # Configuring the load job with the source format as the newline delimited json
             job_config =bigquery.LoadJobConfig(
@@ -220,14 +226,14 @@ class GoogleClient():
 
             # Starting the load job which loads all files from created bytes file into the table
             # load_table_from_file() returns a LoadJob class
-            load_job = self.bigquery_client.load_table_from_file(
-                file_obj= files_in_bytes,
+            load_job = self.bigquery_client.load_table_from_uri(
+                source_uris = upload_from_uri,
                 destination=table_ref,
                 job_config= job_config
             ) 
 
             load_job.result()
-            logging.info(f'Load job finished. Successfully loaded {table_ref} table.')
+            logging.info(f'Load job finished. Successfully loaded to {table_ref}table.')
 
 
     def combined_final_table_bigquery(self, query: str = '', year: Optional[str] = 'combined_final'):
