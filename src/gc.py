@@ -54,6 +54,14 @@ year_table_schema = [
 
                     bigquery.SchemaField('cwe_number', 'STRING', description='CWE description number'),
                     bigquery.SchemaField('cwe_description', 'STRING', description='Description of CWE')]
+
+raws_table_schema = [
+    bigquery.SchemaField(name = 'cve_id', field_type = 'STRING', mode='REQUIRED', description='Unique CVE identifier'),
+    bigquery.SchemaField(name = 'source_year', field_type = 'INT64', mode='REQUIRED', description='Year of CVE entry'),
+    bigquery.SchemaField(name= 'gcs_path', field_type='STRING', mode='REQUIRED', description='String URI ro retrive raw json from GCS bucket'),
+    bigquery.SchemaField(name='json_raw',field_type='STRING', mode= 'REQUIRED', description='String of raw cve json file')
+]
+
 class GoogleClient():
 
     def __init__(self, bucket_name: str = GCLOUD_BUCKETNAME, credentials_path: Optional[str] = GOOGLE_APPLICATION_CREDENTIALS):
@@ -70,12 +78,14 @@ class GoogleClient():
         # Retrieving the bucket through it's name 
         self.bucket= self.storage_client.bucket(self.bucket_name) 
 
-    def upload_blob(self, raw_json, filename):
+    def upload_blob(self, raw_json : Optional[Dict] = {}, filename: str ='', local_filepath: Optional[str] = ''):
         try:
             blob = self.bucket.blob(blob_name = filename)
-
-            blob.upload_from_string(json.dumps(raw_json))
-            logging.info(f'Uploaded {filename} to {self.bucket_name}')
+            if raw_json:
+                blob.upload_from_string(json.dumps(raw_json))
+            if local_filepath:
+                blob.upload_from_filename(filename=local_filepath)
+                logging.info(f'Successfully uploaded file from {local_filepath} to {self.bucket_name}')
         except Exception as e:
             logging.error(f'Failed to upload {filename} to {self.bucket_name}: {e}')
 
@@ -163,8 +173,46 @@ class GoogleClient():
         except Exception as e:
             logging.warning(f'Failed to upload {year} csv to GCS bucket {self.bucket_name}: {e}')
     
+    def create_raws_table(self):
+        dataset_id = f'{self.projectID}.cve_all'
+        dataset_exists = False
 
-    def combined_staging_table_bigquery(self, files :List= [], year: Optional[str] = 'combined_staging'):
+        try:               
+            #Create a bigquery dataset object
+            dataset = bigquery.Dataset(dataset_id)
+            dataset.location = 'US'
+
+            dataset = self.bigquery_client.create_dataset(dataset=dataset, exists_ok=True ,timeout=30)
+            if dataset:
+                logging.info(f'Successfully created: {dataset.dataset_id} in {self.bigquery_client.project}')
+            dataset_exists = True
+        except Exception as e:
+            logging.warning(f'Error creating dataset: {e}')
+            dataset_exists = False
+
+        if dataset_exists:
+            table_id = 'cve_raws_bronze_table'
+            table_ref = f'{dataset_id}{table_id}'
+
+            try:
+                table = self.bigquery_client.get_table(table_ref)
+
+                if table:
+                    logging.info(f'The table {table_ref} already exists! ')
+                    # Might add truncation function
+                else:
+                    new_table = bigquery.Table(table_ref= table_ref, schema=raws_table_schema)
+                    self.bigquery_client.create_table(table=new_table, exists_ok=True)
+                    updated_table = self.bigquery_client.update_table(table, fields=['schema'])
+                    logging.info(f'Successfully created table: {updated_table.table_id} in dataset folder {updated_table.dataset_id}')
+            except Exception as e:
+                logging.warning(f'Failed to resolve table {table_ref}: {e}')
+
+
+
+
+
+    def combined_staging_table_bigquery(self, gcs_uri: str = '', year: Optional[str] = 'combined_staging', did_truncate: bool = False):
 
         dataset_id = f'{self.projectID}.cve_all'
         dataset_exists = False
@@ -184,17 +232,19 @@ class GoogleClient():
     
         # If dataset exists proceeding with table creation or update
         if dataset_exists:
-            table_id = f'cve_{year}_table'
+            table_id = f'cve_combined_staging_table'
             table_ref = f'{dataset_id}.{table_id}'
             try:
                 table = self.bigquery_client.get_table(table_ref)
                 if table:
                     logging.info(f'The table {table.table_id} already exists in {table.dataset_id}!')
 
-                    # Truncating the table before inserting new data for cleaner data
-                    truncate_sql = f"TRUNCATE TABLE `{table_ref}`"
-                    self.bigquery_client.query(truncate_sql).result()
-                    logging.info("Truncated staging table before insert: %s", table_ref)
+                    if did_truncate == False:
+                        logging.info("Truncated staging table before first insertion: %s", table_ref)
+                        # Truncating the table before inserting new data for cleaner data
+                        truncate_sql = f"TRUNCATE TABLE `{table_ref}`"
+                        self.bigquery_client.query(truncate_sql).result()
+                    
             except Exception:
                 logging.error(f'Staging table {table_ref} does not exist. Attempting to create it...')
                 # Defining the new table object
@@ -206,10 +256,7 @@ class GoogleClient():
                 logging.info(f'Successfully created table: {updated_table.table_id} in dataset folder {updated_table.dataset_id}')
             
             # Inserting data into the staging table
-            rows_to_insert = files  
-
-            #Creating a newline delimited JSON from the list of raw cve json dicts
-            files_in_bytes = io.BytesIO(b'\n'.join(json.dumps(row).encode('UTF-8') for row in rows_to_insert))
+            upload_from_uri = gcs_uri
 
             # Configuring the load job with the source format as the newline delimited json
             job_config =bigquery.LoadJobConfig(
@@ -220,8 +267,8 @@ class GoogleClient():
 
             # Starting the load job which loads all files from created bytes file into the table
             # load_table_from_file() returns a LoadJob class
-            load_job = self.bigquery_client.load_table_from_file(
-                file_obj= files_in_bytes,
+            load_job = self.bigquery_client.load_table_from_uri(
+                source_uris = upload_from_uri,
                 destination=table_ref,
                 job_config= job_config
             ) 
