@@ -1,0 +1,14 @@
+bigquery-profile:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: cisa-cve-data-pipeline
+      dataset: sources_bronze
+      threads: 10 # Must be a value of 1 or greater
+      keyfile: C:/Users/ther3/Projects/cve-pipeline-gcp/secrets/cisa-cve-data-pipeline-a26a62e94ef3.json
+      location: US
+      job_retries: 2
+      job_retry_deadline_seconds: 60
+      

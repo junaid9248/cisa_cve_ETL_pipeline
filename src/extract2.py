@@ -216,20 +216,21 @@ class cveExtractor():
 
             if response.status_code == 200:
                 logging.info(f'Successfully downloaded file: {file_name}')
-                cve_json = response.json()
+                # Converts response to a python dictionary
+                cve_dict = response.json()
 
-                if cve_json:
-                    cveId = cve_json.get('cveMetadata', {}).get('cveId', 'none')
+                if cve_dict:
+                    cveId = cve_dict.get('cveMetadata', {}).get('cveId', 'none')
                     filename_string = f'{year}/{cveId}.json'
 
                     # Only run extractor IF local testing
                     if self.islocal is True:
-                        cve_record = extract_cvedata(cve_json)
+                        # Returns another python dictionary that has extracted key value pairs for a single cve entry 
+                        cve_record = extract_cvedata(cve_dict)
 
                         record_details = {
                         'cveId': cveId,
                         'year': year,
-                        'raw_json':cve_json,
                         'extracted_cve_record': cve_record,
                         'filename_string': filename_string,}
 
@@ -241,7 +242,7 @@ class cveExtractor():
                         'year': int(year),
                         # Must be a string that will appended to the ndjson file for reading later
                         'filename_string': filename_string,
-                        'raw_json':json.dumps(cve_json, ensure_ascii=False),
+                        'extracted_cve_record': extract_cvedata(cve_dict),
                         }
                         return bronze_table_row 
                                 
@@ -307,9 +308,12 @@ class cveExtractor():
                         
                         for future in done:
                             result = future.result()
+                            if result is None:
+                                continue
 
                             if self.islocal is False:
-                                ndjson_for_cve_row= json.dumps(result, ensure_ascii= False)
+                                # Converts python dict to json string
+                                ndjson_for_cve_row= json.dumps(result)
                                 output_file.write(ndjson_for_cve_row + '\n')
                             else:
                                 extracted_data = result.get('extracted_cve_record')
@@ -317,9 +321,9 @@ class cveExtractor():
 
                     except Exception as e:
                         if self.islocal is False:
-                            logging.error(f'Failed to write row for {names_pending_by_future.get(future)} to {ndjson_path_for_year}')
+                            logging.error(f'Failed to write row for {names_pending_by_future.get(future)} to {ndjson_path_for_year}:{e}')
                         else:
-                            logging.error(f'Failed to append row for {names_pending_by_future.get(future)} to extracted_rows')
+                            logging.error(f'Failed to append row for {names_pending_by_future.get(future)} to extracted_rows:{e}')
 
                     finally:
                         names_pending_by_future.pop(future, None)
@@ -338,13 +342,12 @@ class cveExtractor():
             if output_file:
                 output_file.close()
 
-        is_truncated = False
 
         if self.islocal is False:
             try:
                 gcs_ndjson_blob_name =f'NDjson_files/{year}/ndjson_{year}_file.ndjson'
                 self.google_client.upload_blob(blobname=gcs_ndjson_blob_name, local_filepath=ndjson_path_for_year)
-                
+
             except Exception as e:
                 logging.warning(f'Something went wrong uploading to GCS bucket ndjson file from {ndjson_path_for_year}:{e}')
 
