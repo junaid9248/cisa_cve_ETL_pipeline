@@ -27,7 +27,6 @@ year_table_schema = [
     bigquery.SchemaField('cisa_kev_date', 'DATE', mode='NULLABLE',description='Date appeared in CISA KEV catalog'),
 
     bigquery.SchemaField('cvss_version', 'FLOAT', description='CVSS version recorded'),
-
     bigquery.SchemaField('base_score', 'FLOAT', description='Base CVSS score for CVE entry'),
 
     bigquery.SchemaField('base_severity', 'STRING', description='Severity classiication for CVE entry'),

@@ -112,10 +112,7 @@ def vector_string_to_metrics(cve_entry_template,vector_string: str) -> Dict[str,
 
 # Helper function to parse date time string values to clean them and convert them using suitable datetime string formats
 def parse_cve_datetime_strings(dt_string: str, column_value: str = '', cve_id: str = ''):
-    
-    # Step 0: If it is the kevdateadded then print
-    if column_value == 'kevdateAdded':
-       logging.info(f'This is the kev date added string: {dt_string}')
+        
     # Return if noneType
     if not dt_string:
         logging.info(f'None type value detected for {cve_id} record, returning back')
@@ -124,7 +121,8 @@ def parse_cve_datetime_strings(dt_string: str, column_value: str = '', cve_id: s
     # Step 1: Check for extra Z charcter
     str_list = list(dt_string)
 
-    if 'Z' or 'z' in str_list:
+    if column_value != 'kevdateAdded' and 'Z' or 'z' in str_list:
+        logging.info(f'Stripping away last index for {cve_id} parsing {column_value}')
         dt_string= dt_string[:-1]
     
     #Step 2: use the correct format and return a strptime dt object
@@ -133,15 +131,19 @@ def parse_cve_datetime_strings(dt_string: str, column_value: str = '', cve_id: s
         '%Y-%m-%dT%H:%M:%S', #Without microseconds
         '%Y-%m-%d' # Only date
     ]
+    try:
+        for format in formats:
+            try:
+                dt_object = datetime.strptime(dt_string, format)
+                logging.info(f'This is being returned as dt_object for {column_value} and CVE ID {cve_id}: {dt_object}')
+                return dt_object
+            except Exception as e:
+                logging.error(f'Format error when processing date time for {column_value} for {cve_id} trying the next format: {e} ')
+                continue
+    except Exception as e:
+        logging.error(f'No formats match. Error when processing date/time for {column_value} for {cve_id}: {e} ')
 
-    for format in formats:
-        try:
-            dt_object = datetime.strptime(dt_string, format)
-            #logging.info(f'This is being returned as dt_object for {column_value} and CVE ID {cve_id}: {dt_object}')
-            return dt_object
-        except Exception as e:
-            #logging.error(f'Format error when processing date time for {column_value} trying the next format: {e} ')
-            continue
+
 
 def extract_cvedata (cve_data_json: Dict = {}):
     cve_entry_template={
@@ -291,10 +293,22 @@ def extract_cvedata (cve_data_json: Dict = {}):
                             # 2.2.1.2. Extracting CISA SSVC metrics from CISA ADP vulnerichment metrics 'other' containers
                             if 'other' in metric:
                                 cisa_adp_vulnrichment_metrics_other_container = metric['other']
-                                type_other = cisa_adp_vulnrichment_metrics_other_container.get('type', '')
-                                content_other = cisa_adp_vulnrichment_metrics_other_container.get('content', [])
+                                content_other = cisa_adp_vulnrichment_metrics_other_container.get('content', {})
 
                                 # For the other container with type ssvvc
+                                type_other = cisa_adp_vulnrichment_metrics_other_container.get('type', '')
+                                # For the other container with type kev
+                                if type_other == 'kev':
+                                    cve_entry_template['cisa_kev'] = True
+                                    kev_date_string = content_other.get('dateAdded', '')
+                                    kdt_object = parse_cve_datetime_strings(dt_string=kev_date_string, column_value='kevdateAdded', cve_id=cve_id)
+                                    
+                                    if kdt_object:
+                                        logging.info(f'This is kdt_object for cve record - {cve_id}: {kdt_object}')
+                                        cve_entry_template['cisa_kev_date'] = kdt_object.date().isoformat()
+                                    else:
+                                        cve_entry_template['cisa_kev_date'] = None
+
                                 if type_other =='ssvc':
                                     ssvc_time_string = content_other.get('timestamp', '')
                                     sssvc_dt_object = parse_cve_datetime_strings(dt_string=ssvc_time_string, column_value='ssvc_timestamp', cve_id = cve_id)
@@ -317,18 +331,8 @@ def extract_cvedata (cve_data_json: Dict = {}):
                                             cve_entry_template['ssvc_automatable'],
                                             cve_entry_template['ssvc_technical_impact']
                                         )
-                                # For the other container with type kev
-                                elif type_other == 'kev':
-                                    cve_entry_template['cisa_kev'] = True
-                                    kev_date_string = content_other.get('dateAdded', '')
-                                    kdt_object = parse_cve_datetime_strings(kev_date_string, 'kevdateAdded', cve_id=cve_id)
-                                    
-                                    if kdt_object:
-                                        logging.info(f'This is kdt_object for cve record - {cve_id}: {kdt_object}')
-                                        cve_entry_template['cisa_kev_date'] = kdt_object.date().isoformat()
-                                    else:
-                                        cve_entry_template['cisa_kev_date'] = None
 
+                                
                     # 2.2.2. Finding the problem types container in the CISA ADP container
                     if cisa_adp_vulnrichment_problem_container:
                         for problem_type in cisa_adp_vulnrichment_problem_container:
