@@ -41,5 +41,5 @@ models:
     example:
       +materialized: table
     
-    source: 
+    sources: 
       +materialized: table

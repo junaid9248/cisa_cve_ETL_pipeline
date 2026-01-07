@@ -1,3 +1,8 @@
+{{ config(
+    materialized='table',
+    cluster_by=['updated_date']
+) }}
+
 WITH table_source AS (
     SELECT cveID,extracted_cve_record AS cve_json
     FROM {{ source('bronze','cve_raws_table') }}
@@ -5,7 +10,7 @@ WITH table_source AS (
 SELECT
     
     -- Basic string value so JSON_VALUE is enough conversion
-    JSON_VALUE(cve_json, '$.cve_id') AS cve_id,
+    cveID AS cve_id,
     
     -- Typecasting to a timestamp first and using COALESCE command to try-except
     -- Untill one format passes and is returned
@@ -60,4 +65,6 @@ SELECT
     JSON_VALUE(cve_json, '$.cwe_number') AS cwe_number,
     JSON_VALUE(cve_json, '$.cwe_description') AS cwe_description,
 
-from table_source
+FROM table_source
+
+

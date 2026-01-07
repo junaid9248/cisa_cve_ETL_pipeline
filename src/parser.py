@@ -7,7 +7,7 @@ import logging
 def calculate_ssvc_score(exploitation: str, automatable: str, technical_impact: str) -> str:
     # Normalize inputs to lowercase
     exploitation = exploitation.lower()
-    automatable = automatable.lower()
+    automatable = automatable
     technical_impact = technical_impact.lower()
 
     if exploitation == 'active':
@@ -318,6 +318,7 @@ def extract_cvedata (cve_data_json: Dict = {}):
 
                                     for option in options:
                                         if 'Exploitation' in option:
+                                            logging.info
                                             cve_entry_template['ssvc_exploitation'] = option.get('Exploitation', '')
                                         if 'Automatable' in option:
                                             cve_entry_template['ssvc_automatable'] = bool(option.get('Automatable', '').lower()) == 'yes'
@@ -325,7 +326,8 @@ def extract_cvedata (cve_data_json: Dict = {}):
                                             cve_entry_template['ssvc_technical_impact'] = option.get('Technical Impact', '')
                                     
                                     # Calculate SSVC decision if all required fields are present
-                                    if cve_entry_template['ssvc_exploitation'] and cve_entry_template['ssvc_automatable'] and cve_entry_template['ssvc_technical_impact']:
+                                    #if cve_entry_template['ssvc_exploitation'] and cve_entry_template['ssvc_automatable'] and cve_entry_template['ssvc_technical_impact']:
+                                        logging.info(f'Getting the ssvc decision for {cve_id}')
                                         cve_entry_template['ssvc_decision'] = calculate_ssvc_score(
                                             cve_entry_template['ssvc_exploitation'],
                                             cve_entry_template['ssvc_automatable'],
