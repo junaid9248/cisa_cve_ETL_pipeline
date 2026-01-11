@@ -1,8 +1,9 @@
-import argparse
+
 from src.fetch_years import fetch_all_years
 from src.extract2 import cveExtractor
 from src.load_raws_bq import ndjson_loader
-from typing import Optional, List, Dict
+from src.transform_dbt import run_dbt_transform_command
+import argparse
 import os
 import subprocess
 import logging 
@@ -48,20 +49,8 @@ def run_elt_pipeline(args):
     # STEP 2: Initialize the loader class and load ndjsons to a cve_raws table
     if args.task == 'transform':
         logging.info(f'---STARTING TRANSFORM OF RAWS TABLE TO FINAL TABLE---')
-        dbt_command = ['dbt' ,'build' ,'--project-dir' ,'dbt' ,'--project-profile' ,'dbt' ,'--select ','sources']
-        try:
-            result = subprocess.run(args=dbt_command,
-                                    cwd= 'dbt',
-                                    capture_output= True, 
-                                    text= True, 
-                                    check=True)
-            
-            logging.info(f'dbt transform output: {result}')
-        except subprocess.CalledProcessError as e:
-            logging.error(f"dbt transformation failed!")
-            logging.error(f"Error output:\n{e.stderr}")
-            sys.exit(1)
-
+        run_dbt_transform_command()
+        
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description='Arguments passed to pipeline run function')

@@ -25,4 +25,5 @@ __pycache__/
 
 *secrets/
 
-*.main_alt.py
+cisa-cve-pipeline_dag.py
+
