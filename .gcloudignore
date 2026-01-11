@@ -32,5 +32,9 @@ __pycache__/
 *.pyo
 *.pyd
 
-# test files and such 
-main_alt.py
+# Enviroment variable files.env
+*.env
+
+*secrets/
+
+*.main_alt.py

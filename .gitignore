@@ -24,3 +24,5 @@ __pycache__/
 *.env
 
 *secrets/
+
+*.main_alt.py

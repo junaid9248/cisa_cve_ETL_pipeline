@@ -4,25 +4,26 @@ import json
 import csv
 import os
 import time
-import logging
+
 from datetime import datetime
 import io
 from typing import Dict, List, Optional
-from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
 from urllib3.util.retry import Retry
-
+from src.config import IS_LOCAL
 
 from src.gc import GoogleClient
 
 from src.parser import extract_cvedata
 
-logging.basicConfig(level=logging.INFO)
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 #If not available locally will not execute
+from dotenv import load_dotenv
 load_dotenv(override=True)
              
 class cveExtractor():
-    def __init__(self, islocal: Optional[bool] = False, branch: str = 'develop', token: Optional[str] = None):
+    def __init__(self, islocal: Optional[bool] = IS_LOCAL, branch: str = 'develop', token: Optional[str] = None):
 
         self.branch = branch
         self.base_url = "https://api.github.com"
@@ -66,11 +67,11 @@ class cveExtractor():
         else:
             logging.warning(" No GitHub token found")
 
-        self.islocal = islocal
+        self.islocal= islocal
 
         #Instantiating a gc class if remote execution
         if self.islocal == False:
-            self.google_client = GoogleClient()
+            self.google_client = GoogleClient(isLocal=self.islocal)
             logging.info(f'Instantiated a google client for remote upload')
         else:
             self.google_client = None     
@@ -95,7 +96,7 @@ class cveExtractor():
             logging.error(f'Error establishing connection with {self.repo_name} repository: {e}')
 
         if response.status_code == 200:
-            logging.info(f'Successfully estabished connection with {self.repo_name} repository')
+            logging.info(f'Successfully estabished connection with {self.repo_name} repository during test phase!')
             # Check rate limits
             rate_limit_remaining = response.headers.get('x-ratelimit-remaining')
             rate_limit_reset = response.headers.get('x-ratelimit-reset')

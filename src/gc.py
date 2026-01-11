@@ -1,23 +1,15 @@
-from google.cloud import bigquery, exceptions
-from google.cloud.storage import transfer_manager, Client
+from google.cloud import bigquery, storage
 from google.oauth2 import service_account
 from google.api_core.exceptions import NotFound
 
 import os
-import io
-import json
-import logging
 import pandas as pd
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 
-
-from src.config import GCLOUD_PROJECTNAME
-
+import logging
 logging.basicConfig(level = logging.INFO)
 
-GCLOUD_PROJECTNAME = os.environ.get('GCLOUD_PROJECTNAME')
-GOOGLE_APPLICATION_CREDENTIALS = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
-GCLOUD_BUCKETNAME = os.environ.get('GCLOUD_BUCKETNAME')
+from src.config import IS_LOCAL, GCLOUD_PROJECTNAME, GCLOUD_BUCKETNAME, GOOGLE_APPLICATION_CREDENTIALS_PATH
 
 year_table_schema = [
     bigquery.SchemaField(name = 'cve_id', field_type = 'STRING', mode='REQUIRED', description='Unique CVE identifier'),
@@ -65,16 +57,24 @@ raws_table_schema = [
 
 class GoogleClient():
 
-    def __init__(self, bucket_name: str = GCLOUD_BUCKETNAME, credentials_path: Optional[str] = GOOGLE_APPLICATION_CREDENTIALS):
+    def __init__(self, isLocal: Optional[bool] = IS_LOCAL):
 
         self.projectID = GCLOUD_PROJECTNAME
-        self.credentials = service_account.Credentials.from_service_account_file(credentials_path)
+        self.isLocal = isLocal
 
-        #Defining the google storage client and bigquery client with credentials and project id 
-        self.storage_client = Client(credentials=self.credentials, project= self.projectID)
-        self.bigquery_client = bigquery.Client(credentials=self.credentials, project=self.projectID)
+        # Let us use locally stored json credentials file only when running from local host machine
+        if self.isLocal:
+            logging.info(f'Initialzing a Google Client from local machine for testing...')
+            self.credentials = service_account.Credentials.from_service_account_file(filename=GOOGLE_APPLICATION_CREDENTIALS_PATH)
+            self.bigquery_client = bigquery.Client(credentials=self.credentials, project=self.projectID)
+            self.storage_client = storage.Client(credentials=self.credentials, project= self.projectID)
+        else:
+            # When running through a cloud run job, the service account credentials tied to the run job can be used
+            #These will be the application defualt credentials ie: ADC
+            self.storage_client = storage.Client(project= self.projectID)
+            self.bigquery_client = bigquery.Client(project=self.projectID)
         
-        self.bucket_name = bucket_name
+        self.bucket_name = GCLOUD_BUCKETNAME
 
         # Retrieving the bucket through it's name 
         self.bucket= self.storage_client.bucket(self.bucket_name) 
@@ -89,9 +89,7 @@ class GoogleClient():
         except Exception as e:
             logging.error(f'Failed to upload {blobname} to {self.bucket_name}: {e}')
 
-
     def csv_to_bucket(self, year_data, year: str = ''):
-
         try:
 
             df = pd.DataFrame(year_data)
@@ -110,16 +108,6 @@ class GoogleClient():
         except Exception as e:
             logging.warning(f'Failed to upload {year} csv to GCS bucket {self.bucket_name}: {e}')
     
-    def check_dataset_exists(self, dataset_id: str = ''):
-            try:
-                #Create a bigquery dataset object
-                dataset = bigquery.Dataset(dataset_id)
-                dataset.location = 'US'
-                dataset = self.bigquery_client.create_dataset(dataset=dataset, exists_ok=True ,timeout=30)
-                return True
-            except Exception as e:
-                logging.info('Failed to create dataset')
-                return False
 
     # pass a first run parameter to check if dataset exists or table exists, after which we simply just dont check
     def create_fill_raws_table(self, source_uri: str= '', year: str = '', isFirstRun : bool = True):

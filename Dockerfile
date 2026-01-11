@@ -1,5 +1,20 @@
-FROM apache/airflow:2.9.3-python3.11
+FROM python:3.11-slim
 
-COPY . /opt/airflow/repo
-WORKDIR /opt/airflow/repo
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y git
+
+COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+COPY dbt/ ./dbt/
+COPY main.py .
+
+ENV PYTHONPATH=/app
+
+ENTRYPOINT ["python", "main.py"]
+
+
+
+

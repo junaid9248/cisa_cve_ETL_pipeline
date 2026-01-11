@@ -3,13 +3,13 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from dotenv import load_dotenv
 from typing import List
-import logging
-import os
-logging.basicConfig(level=logging.INFO)
-#If not available locally will not execute
-load_dotenv(override=True)
+from src.config import GH_TOKEN
 
-def fetch_all_years() -> List:
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+def fetch_all_years() -> List[str]:
     base_raws_url = "https://api.github.com"
     repo_owner = "cisagov"
     repo_name = "vulnrichment"
@@ -26,17 +26,17 @@ def fetch_all_years() -> List:
     session = requests.Session()
     session.mount('https://', adapter=adapter)
 
-    GH_TOKEN = os.environ.get('GH_TOKEN')
+    token = GH_TOKEN
 
-    if GH_TOKEN:
+    if token:
             # Add token to self.headers then update the header to current sessoion by usung update method
             session.headers.update({
                 'User-Agent': 'CISA-Vulnrichment-Extractor/1.0',
                 'Accept': 'application/vnd.github.v3+json',
-                'Authorization': f'token {GH_TOKEN}'})
+                'Authorization': f'token {token}'})
             logging.info('GitHub token for authentication was found and used to establish session')
     else:
-        logging.warning(" No GitHub token found")
+        logging.warning(" No GitHub token found rate limits might be applied! ")
 
     #get all years
     fetch_url = f"{base_raws_url}/repos/{repo_owner}/{repo_name}/contents"
@@ -50,12 +50,11 @@ def fetch_all_years() -> List:
                 if item['type'] == 'dir' and item['name'] not in ['.github', 'assets']:
                     years.append(item['name'])
             logging.info(f"Number of available years: {len(years)}")
-            return  years, len(years)
+            return  years
       
     except requests.RequestException as e:
         logging.error(f"Error fetching years: {e}")
         return []
-
 
 
 if __name__ == '__main__':

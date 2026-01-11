@@ -1,21 +1,86 @@
-import logging
 import argparse
+from src.fetch_years import fetch_all_years
 from src.extract2 import cveExtractor
-from src.config import IS_LOCAL
+from src.load_raws_bq import ndjson_loader
+from typing import Optional, List, Dict
+import os
+import subprocess
+import logging 
+import sys
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')#If not available locally will not execute
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+def run_elt_pipeline(args):
 
+    #Either get years list from the arguments or from fetch_years() method
+    if args.testyearslist:
+        # If testyears list is provided
+        # example: python main.py --local 1999,2000,2001 -> Only gets data for custom list of years in local mode
+        # example: python main.py --cloud 1999,2000,2001 -> Only gets data for custom list of years in cloud mode 
+        years = [testyear.strip() for testyear in args.testyearslist.split(',')]
+        logging.info(f'Starting test mode for years: {years}')
+    else:
+        years = fetch_all_years()
+
+
+    # STEP 1: Extract the raws and dump ndjson into data lake (GCS bucket)
+    # Set whther executing extraction in local or cloud only mode
+    if args.cloud:
+        islocal = False
+        os.environ['IS_LOCAL'] = 'false'
+
+    elif args.local:
+        islocal = True
+        os.environ['IS_LOCAL'] = 'true'
+
+    if args.task ==  'extract':
+        logging.info(f'---STARTING EXTRACTION OF CVE RECORDS---')
+        extractor = cveExtractor(islocal= islocal)
+        extractor.run(years=years)
+
+    # STEP 2: Initialize the loader class and load ndjsons to a cve_raws table
+    if args.task == 'load':
+        logging.info(f'---STARTING LOADING OF NDJSONS TO RAWS TABLE---')
+        loader = ndjson_loader(isLocal=islocal)
+        loader.load_ndjsons_to_bq(years=years)
+        
+    # STEP 2: Initialize the loader class and load ndjsons to a cve_raws table
+    if args.task == 'transform':
+        logging.info(f'---STARTING TRANSFORM OF RAWS TABLE TO FINAL TABLE---')
+        dbt_command = ['dbt' ,'build' ,'--project-dir' ,'dbt' ,'--project-profile' ,'dbt' ,'--select ','sources']
+        try:
+            result = subprocess.run(args=dbt_command,
+                                    cwd= 'dbt',
+                                    capture_output= True, 
+                                    text= True, 
+                                    check=True)
+            
+            logging.info(f'dbt transform output: {result}')
+        except subprocess.CalledProcessError as e:
+            logging.error(f"dbt transformation failed!")
+            logging.error(f"Error output:\n{e.stderr}")
+            sys.exit(1)
 
 
 if __name__ == '__main__':
+    argparser = argparse.ArgumentParser(description='Arguments passed to pipeline run function')
 
-    argparser = argparse.ArgumentParser(description='Start cve json raws extraction from github repo in local or cloud mode')
+    argparser.add_argument('--task', 
+                            required= True,
+                            help='Defines what step should be performed from ETL pipeline',
+                            choices=['extract', 'load', 'transform'])
 
     # Argument for local flag that creates a cveExtractor() instance with islocal set to true
-    argparser.add_argument('--local', action='store_true', help='Run in local mode and store datasets to dataset_local folder')
+    operation_mode_group = argparser.add_mutually_exclusive_group(required=True)
+    operation_mode_group.add_argument('--local', 
+                           action='store_true', 
+                           help='Run in local mode and store datasets to dataset_local folder')
 
     # Argument for local flag that creates a cveExtractor() instance with islocal set to false
-    argparser.add_argument('--cloud', action='store_true', help='Run in GC mode and save to cloud storage + bigquery')
+    operation_mode_group.add_argument('--cloud', 
+                           action='store_true', 
+                           help='Run in GC mode and save to cloud storage + bigquery')
 
     # Argument for custom, reduced list of years passed in either mode for testing purposes 
     argparser.add_argument('testyearslist',
@@ -23,29 +88,9 @@ if __name__ == '__main__':
                            default= None,
                            type= str, 
                            help='Comma separated years list passed manually for testing')
-
-    is_local_mode = bool(IS_LOCAL)
-
-    args = argparser.parse_args()
-
-    if args.cloud:
-        #If terminal execution was done using --cloud argument then is_local is set to false obviously
-        is_local_mode = False
-    elif args.local:
-        is_local_mode = True
-
-    # Instantaiting the cveExtractor in either local or cloud mode first 
-    extractor = cveExtractor(islocal=is_local_mode)
-
-    if args.testyearslist:
-        # If testyears list is provided
-        # example: python main.py --local 1999,2000,2001 -> Only gets data for custom list of years in local mode
-        # example: python main.py --cloud 1999,2000,2001 -> Only gets data for custom list of years in cloud mode 
-        years = [testyear.strip() for testyear in args.testyearslist.split(',')]
-        logging.info(f'Starting test mode for years: {years}')
-
-    else:
-        # In automated mode gets years directly from get_years() function 
-        years = extractor.get_years()
     
-    extractor.run(years)
+    args= argparser.parse_args()
+
+    if args:
+        run_elt_pipeline(args = args)
+
