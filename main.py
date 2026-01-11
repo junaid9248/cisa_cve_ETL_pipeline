@@ -56,7 +56,7 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description='Arguments passed to pipeline run function')
 
     argparser.add_argument('--task', 
-                            required= True,
+                            required= False,
                             help='Defines what step should be performed from ETL pipeline',
                             choices=['extract', 'load', 'transform'])
 
