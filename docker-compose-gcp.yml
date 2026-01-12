@@ -21,9 +21,8 @@ services:
     image: cve-airflow:latest
     depends_on:
       - postgres
-    working_dir: /opt/airflow/repo
+    working_dir: /opt/airflow
     environment:
-      # Airflow Core Config
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/repo/dags
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
@@ -32,23 +31,21 @@ services:
       AIRFLOW__CORE__HOSTNAME_CALLABLE: "airflow.utils.net.get_host_ip_address"
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
 
-      # GCP Connections (Using URI format)
-      # We define BOTH IDs to be safe
+      # GCP Connections both
       AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: 'google-cloud-platform://?project_id=${GCLOUD_PROJECTNAME}&key_path=/opt/airflow/repo/secrets/cisa-elt-pipeline.json'
       AIRFLOW_CONN_GCP_CONN_ID: 'google-cloud-platform://?project_id=${GCLOUD_PROJECTNAME}&key_path=/opt/airflow/repo/secrets/cisa-elt-pipeline.json'
 
-      # App Specific Vars
       IS_LOCAL: 'false'
       GCLOUD_PROJECTNAME: ${GCLOUD_PROJECTNAME}
       GCLOUD_BUCKETNAME: ${GCLOUD_BUCKETNAME}
       GH_TOKEN: ${GH_TOKEN}
       MY_EMAIL: ${MY_EMAIL}
-      PYTHONPATH: "/opt/airflow/repo:/opt/airflow/repo/${PYTHONPATH}"
+      PYTHONPATH: "/opt/airflow/repo"
       GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/repo/secrets/cisa-elt-pipeline.json
     ports:
       - "8080:8080"
     volumes:
-      - ./:/opt/airflow/repo
+      - ./:/opt/airflow
     command: bash -c "
       airflow db migrate && 
       airflow users create 
@@ -72,9 +69,8 @@ services:
     image: cve-airflow:latest
     depends_on:
       - postgres
-    working_dir: /opt/airflow/repo
+    working_dir: /opt/airflow
     environment:
-      # Copy the exact same environment block from webserver here
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/repo/dags
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
@@ -83,10 +79,10 @@ services:
       IS_LOCAL: 'false'
       GCLOUD_PROJECTNAME: ${GCLOUD_PROJECTNAME}
       GCLOUD_BUCKETNAME: ${GCLOUD_BUCKETNAME}
-      PYTHONPATH: "/opt/airflow/repo:/opt/airflow/repo/${PYTHONPATH}"
+      PYTHONPATH: "/opt/airflow/repo"
       GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/repo/secrets/cisa-elt-pipeline.json
     volumes: 
-      - ./:/opt/airflow/repo
+      - ./:/opt/airflow
     command: airflow scheduler
 
 volumes:

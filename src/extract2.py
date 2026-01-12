@@ -251,8 +251,7 @@ class cveExtractor():
     def extract_store_cve_data(self, year_data: Dict = {}, maxworkers: int = 25):
         year = year_data['year']
         
-        # 1. DELETE the all_files list. It's eating Gigs for no reason.
-        # We only need the count for logging.
+        
         total_files_in_year = sum(len(f) for f in year_data['subdirs'].values())
         logging.info(f'Starting processing for {total_files_in_year} in {year}')
 
@@ -288,9 +287,9 @@ class cveExtractor():
                         break
 
                 while pending:
-                    try:
-                        done, pending = wait(fs=pending, timeout=30, return_when=FIRST_COMPLETED)
-                        
+                    
+                    done, pending = wait(fs=pending, timeout=30, return_when=FIRST_COMPLETED)
+                    try:  
                         for future in done:
                             result = future.result()
                             fname = names_pending_by_future.pop(future, "Unknown")
@@ -304,18 +303,22 @@ class cveExtractor():
                                 extracted_rows.append(result.get('extracted_cve_record'))
                             
                             del result 
-
-                            # Pull the next file from the generator to keep the engine running
-                            try:
-                                next_file = next(files_iter)
-                                next_future = executor.submit(self.extract_single_cve_file, next_file, year)
-                                pending.add(next_future)
-                                names_pending_by_future[next_future] = next_file['name']
-                            except StopIteration:
-                                pass
-
                     except Exception as e:
-                        logging.error(f'Error processing batch in {year}: {e}')
+                        logging.error(f'Error processing {fname} in {year}: {e}')
+                        continue  
+                    
+                    # After the result of that future has been proccessed
+                    # ie: 1. Got a valid result and either written to ndjson file or added to extracted rows to write locally alter
+                    # 2. Skipped as a error
+                    # We add the next future to pending untill it keeps 
+                    try:
+                        next_file = next(files_iter)
+                        next_future = executor.submit(self.extract_single_cve_file, next_file, year)
+                        pending.add(next_future)
+                        names_pending_by_future[next_future] = next_file['name']
+                    except StopIteration:
+                        pass
+
         finally:
             if output_file:
                 output_file.close()
