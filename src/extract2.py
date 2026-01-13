@@ -322,21 +322,21 @@ class cveExtractor():
                         pass
 
         finally:
-            if output_file:
+            if output_file and self.islocal:
+
                 try:
                     logging.info(f'Successfully wrote ndjson file for year {year_data['year']}')
                     output_file.close() 
-                except Exception as e:
-                    logging.warning(f'Something went wrong closing ndjson file for year {year_data['year']}')
-        
-        try:
-            # Upload to the gcs bucket ndjson folder
-            blob_name = f'NDjson_files/{year}/ndjson_{year}_file.ndjson'
-            self.google_client.upload_blob(blobname=blob_name, local_filepath=ndjson_path_for_year)
+                    # Upload to the gcs bucket ndjson folder
+                    blob_name = f'NDjson_files/{year}/ndjson_{year}_file.ndjson'
+                    self.google_client.upload_blob(blobname=blob_name, local_filepath=ndjson_path_for_year)
 
-            os.remove(ndjson_path_for_year) 
-        except Exception as e:
-            logging.warning(f'Something went wrong uploading {blob_name} to {GCLOUD_BUCKETNAME} : {e}')
+                    os.remove(ndjson_path_for_year) 
+    
+                except Exception as e:
+                    logging.warning(f'Something went wrong uploading {blob_name} to {GCLOUD_BUCKETNAME} : {e}')
+        
+        
 
     
     def year_to_csv(self, year_processed_files: List, year):

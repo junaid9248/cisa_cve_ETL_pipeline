@@ -56,7 +56,7 @@ Install and configure neccesary services:
 ### Installation Steps
 1. Clone repository from master branch
 ```sh
-    git clone https://github.com/junaid9248/cisa_cve_ETL_pipeline master
+    git clone https://github.com/junaid9248/cisa_cve_ETL_pipeline dev
 ```
 2. Configure GCP project (cloud storage, compute engine, bigquery, service account)
 You can use the provided tutorials and others to set up your GCP project with required services:
