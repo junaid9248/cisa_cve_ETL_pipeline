@@ -8,7 +8,6 @@ import sys
 def run_dbt_command(dbt_command: List = []):
     try:
         result = subprocess.run(args=dbt_command,
-                                cwd= 'dbt',
                                 capture_output= True, 
                                 text= True, 
                                 check=True)
