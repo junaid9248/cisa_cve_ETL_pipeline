@@ -28,5 +28,5 @@ __pycache__/
 cisa-cve-pipeline_dag.py
 docker-compose.yml
 Dockerfile
-Dockerfile.cloudrun
+Dockerfile.local
 
