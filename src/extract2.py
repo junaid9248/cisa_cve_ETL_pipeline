@@ -24,7 +24,9 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
              
 class cveExtractor():
-    def __init__(self, islocal: Optional[bool] = IS_LOCAL, branch: str = 'develop', token: Optional[str] = None):
+    def __init__(self, islocal: bool = IS_LOCAL, branch: str = 'develop', token: Optional[str] = None):
+        
+        self.islocal= islocal
 
         self.branch = branch
         self.base_url = "https://api.github.com"
@@ -68,13 +70,13 @@ class cveExtractor():
         else:
             logging.warning(" No GitHub token found")
 
-        self.islocal= islocal
 
-        #Instantiating a gc class if remote execution
+        #Instantiating a gc class if cloud mode
         if self.islocal == False:
             self.google_client = GoogleClient(isLocal=self.islocal)
             logging.info(f'Instantiated a google client for remote upload')
         else:
+            logging.info(f'Local mode so no google client instance is created')
             self.google_client = None     
 
     def _handle_rate_limit(self, response):
@@ -300,7 +302,6 @@ class cveExtractor():
 
                             if self.islocal is False:
                                 output_file.write(json.dumps(result) + '\n')
-
                             else:
                                 extracted_rows.append(result.get('extracted_cve_record'))
                             
@@ -322,23 +323,25 @@ class cveExtractor():
                         pass
 
         finally:
-            if output_file and self.islocal:
+            if output_file:
 
                 try:
-                    logging.info(f'Successfully wrote ndjson file for year {year_data['year']}')
-                    output_file.close() 
-                    # Upload to the gcs bucket ndjson folder
-                    blob_name = f'NDjson_files/{year}/ndjson_{year}_file.ndjson'
-                    self.google_client.upload_blob(blobname=blob_name, local_filepath=ndjson_path_for_year)
-
-                    os.remove(ndjson_path_for_year) 
+                    output_file.close()
+                    logging.info(f'Successfully wrote ndjson file for year {year}')
     
                 except Exception as e:
-                    logging.warning(f'Something went wrong uploading {blob_name} to {GCLOUD_BUCKETNAME} : {e}')
+                    logging.warning(f'Something went wrong closing the file {ndjson_path_for_year}: {e}')
         
-        
+        if self.islocal is False:
+            try:
+                # Upload to the gcs bucket ndjson folder and then delete temp file
+                blob_name = f'NDjson_files/{year}/ndjson_{year}_file.ndjson'
+                self.google_client.upload_blob(blobname=blob_name, local_filepath=ndjson_path_for_year)
 
-    
+                os.remove(ndjson_path_for_year) 
+            except Exception as e:
+                    logging.warning(f'Something went wrong uploading {blob_name} to {GCLOUD_BUCKETNAME} : {e}')
+
     def year_to_csv(self, year_processed_files: List, year):
         try:
             local_dataset_folder_path = os.path.join(os.getcwd(), 'dataset_local')
