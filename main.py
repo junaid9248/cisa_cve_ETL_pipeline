@@ -53,7 +53,7 @@ def run_elt_pipeline(args):
         dbt_clean_command = f'dbt clean && dbt compile'.split()
         run_dbt_command(dbt_command=dbt_clean_command)
 
-        dbt_command = f'dbt build --project-dir dbt --profiles-dir dbt --select sources'.split()
+        dbt_command = f'dbt build --project-dir ./dbt --profiles-dir ./dbt --select sources'.split()
         run_dbt_command(dbt_command=dbt_command)
         
 
