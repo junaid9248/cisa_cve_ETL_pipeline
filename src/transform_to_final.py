@@ -9,7 +9,6 @@ def run_dbt_command(dbt_command: List = []):
     try:
         #dbt_command = f'dbt build --project-dir dbt --profiles-dir dbt --select sources'.split()
         result = subprocess.run(args=dbt_command,
-                                capture_output= True, 
                                 text= True, 
                                 check=True)
             
@@ -18,6 +17,7 @@ def run_dbt_command(dbt_command: List = []):
         logging.error(f"dbt transformation failed!")
         logging.error(f'Command failed with return code:{e.returncode}')
         logging.error(f"Error output: {e.output}")
+        logging.error(f'Stdout and stderror:{e.stdout} | {e.stderr}')
         sys.exit(1)
 
 

@@ -10,6 +10,8 @@ COPY --chown=airflow:root dags/ /opt/airflow/repo/dags/
 COPY --chown=airflow:root src/config.py /opt/airflow/repo/src/config.py
 # create secrets folder with the json credentials for set service account and copy into airflow secrets folder 
 COPY --chown=airflow:root secrets/cisa-elt-pipeline.json /opt/airflow/repo/secrets/cisa-elt-pipeline.json
+
+COPY --chown=airflow:root dbt/ /opt/airflow/repo/dbt/
 COPY --chown=airflow:root airflow-requirements.txt /opt/airflow/repo/airflow-requirements.txt
 
 # In airflow the repo will be our working directory 
