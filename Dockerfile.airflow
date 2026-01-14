@@ -8,6 +8,8 @@ FROM apache/airflow:2.9.3-python3.11
 # Note: we change ownership of copied folder and file to airflow from root as airflwo containers are configured to airflow user
 COPY --chown=airflow:root dags/ /opt/airflow/repo/dags/
 COPY --chown=airflow:root src/config.py /opt/airflow/repo/src/config.py
+# create secrets folder with the json credentials for set service account and copy into airflow secrets folder 
+COPY --chown=airflow:root secrets/cisa-elt-pipeline.json /opt/airflow/repo/secrets/cisa-elt-pipeline.json
 COPY --chown=airflow:root airflow-requirements.txt /opt/airflow/repo/airflow-requirements.txt
 
 # In airflow the repo will be our working directory 
