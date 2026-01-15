@@ -42,7 +42,7 @@ The pipeline operates on a GCP Compute Engine VM (e2-medium) with 2 vCPUs, 4GB R
 - __Stage 3: Transform bronze table to final table using dbt__
     - Uses Bigquery SQL to transform bronze table into a refined final table available to use in BigQuery
 
-![CISA CVE Vulnrichment ETL Data pipeline architecture](eltpipeline.png) 
+![CISA CVE Vulnrichment ETL Data pipeline architecture](eltpipeline1.png) 
 
 
 ## __Getting Started__
@@ -55,42 +55,7 @@ Install and configure neccesary services:
 5. Pip package manager
 
 ### Installation Steps
-1. Clone repository from master branch
-```sh
-    git clone https://github.com/junaid9248/cisa_cve_ETL_pipeline dev
-```
-2. Configure GCP project (cloud storage, compute engine, bigquery, service account)
-You can use the provided tutorials and others to set up your GCP project with required services:
-- [Google Cloud Full Course for Beginners](https://www.youtube.com/watch?v=lvZk_sc8u5I)
-- [Set Up Google Cloud Project & Service Account](https://www.youtube.com/watch?v=_FmsEkF72M0&t=71s)
 
-3. Install python dependencies using pip manager
-```sh
-    cd cisa_cve_elt_pipeline
-    pip install -r requirements.txt
-```
-
-4. Create a .env file in root directory
-```sh
-    touch .env
-```
-
-6. Fill the .env with your secrets
-- Create a source.txt file with the following environment variables and set your values:
-```python
-#source.txt
-IS_LOCAL  =  #boolean for cloud or local mode operation
-GCLOUD_PROJECTNAME = #String value of project name on GCP
-GH_TOKEN = # String value of GitHub developer token for increased bandwidth
-GCLOUD_BUCKETNAME = # String value of bucket name in Cloud Storage
-GOOGLE_APPLICATION_CREDENTIALS = # String value for path to GCP service account credentials 
-MY_EMAIL = # String value for apache webserver email
-AIRFLOW__WEBSERVER__SECRET_KEY = # String value for common apache airflow webserver and scheduler secret key
-```
-- Fill existing .env file from source.txt
-```sh
-    cat source.txt > .env
-```
 
 
 
