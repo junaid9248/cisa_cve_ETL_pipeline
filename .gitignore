@@ -24,8 +24,9 @@ __pycache__/
 *.env
 
 *secrets/
+*logs/
 
-cisa-cve-pipeline_dag.py
+dags/cisa-cve-pipeline_dag.py
 docker-compose.yml
 Dockerfile
 Dockerfile.local
@@ -37,4 +38,3 @@ cloudsecrets.py
 kaggle_manager.py
 transform_dbt.py
 
-logs/
