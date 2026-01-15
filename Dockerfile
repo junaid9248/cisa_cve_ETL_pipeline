@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY cloudentrypoint.sh .
-RUN RUN sed -i 's/\r$//' cloudentrypoint.sh && chmod +x cloudentrypoint.sh
+RUN chmod +x cloudentrypoint.sh
 
 COPY main.py .
 COPY src/ ./src/

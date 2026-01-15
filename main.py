@@ -5,10 +5,11 @@ from src.load_raws_bq import ndjson_loader
 from src.transform_to_final import run_dbt_command
 import argparse
 import os
-import subprocess
+
 import logging 
-import sys
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')#If not available locally will not execute
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+#If not available locally will not execute
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
@@ -46,7 +47,7 @@ def run_elt_pipeline(args):
         loader = ndjson_loader(isLocal=islocal)
         loader.load_ndjsons_to_bq(years=years)
         
-    # STEP 2: Initialize the loader class and load ndjsons to a cve_raws table
+    # STEP 3: Pass dbt command to run_dbt_command() method
     if args.task == 'transform':
         logging.info(f'---STARTING TRANSFORM OF RAWS TABLE TO FINAL TABLE---')     
 
