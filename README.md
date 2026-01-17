@@ -42,7 +42,7 @@ The pipeline operates on a GCP Compute Engine VM (e2-medium) with 2 vCPUs, 4GB R
 - __Stage 3: Transform bronze table to final table using dbt__
     - Uses Bigquery SQL to transform bronze table into a refined final table available to use in BigQuery
 
-![CISA CVE Vulnrichment ELT Data pipeline architecture](elt-pipline.png) 
+![CISA CVE Vulnrichment ELT Data pipeline architecture](elt_pipline.png) 
 
 
 

@@ -31,5 +31,15 @@ docker-compose.yml
 Dockerfile
 Dockerfile.local
 
-cloudrunentry.sh
+kaggle_manager.py
 
+
+src/*
+    !src/__init__.py
+    !src/config.py
+    !src/extract2.py
+    !src/fetch_years.py
+    !src/gc.py
+    !src/load_raws_bq.py
+    !src/parser.py
+    !src/transform_to_final.py
