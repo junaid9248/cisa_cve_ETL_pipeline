@@ -19,8 +19,8 @@ services:
   airflow-webserver:
     build: 
       context: .
-      dockerfile: Dockerfile.airflow
-    image: cve-airflow:latest
+      dockerfile: Dockerfile.airflow #Using airflow dockerfile
+    image: cve-airflow:latest #tag for built image 
     depends_on:
       - postgres
     working_dir: /opt/airflow/repo
@@ -43,6 +43,7 @@ services:
       GH_TOKEN: ${GH_TOKEN}
       MY_EMAIL: ${MY_EMAIL}
       PYTHONPATH: /opt/airflow/repo/src
+      #Mounted volume on cloud run job at /opt/airflow/repo/secrets
       GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/repo/secrets/cisa-elt-pipeline.json
     ports:
       - "8080:8080"

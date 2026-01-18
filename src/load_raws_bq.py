@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional
 from src.gc import GoogleClient
 from time import sleep
-#googleclient = GoogleClient()
+
 import logging
 logging.basicConfig(level=logging.INFO)
 

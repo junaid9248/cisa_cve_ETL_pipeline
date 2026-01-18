@@ -1,8 +1,7 @@
-# Handle line endings automatically for files detected as text 
-# and ensure they are converted to LF on check-in
+
 * text=auto eol=lf
 
-# Explicitly force LF for specific ecosystem files
+# Explicitly force LF for specific ecosystem files to prevent vscode 
 Dockerfile text eol=lf
 *.sh       text eol=lf
 *.py       text eol=lf
@@ -11,6 +10,6 @@ Dockerfile text eol=lf
 *.yml      text eol=lf
 *.json     text eol=lf
 
-# Denote all files that are truly binary and should not be modified
+# Force no modification for binary files (images etc)
 *.png      binary
 *.jpg      binary
