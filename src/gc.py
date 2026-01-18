@@ -122,7 +122,6 @@ class GoogleClient():
             logging.info(f'Failed to create dataset_final: {e}')
 
             
-    # pass a first run parameter to check if dataset exists or table exists, after which we simply just dont check
     def create_fill_raws_table(self, source_uri: str= '', year: str = '', isFirstRun : bool = True):
         dataset_id = f'{self.projectID}.sources_bronze'
 
@@ -177,6 +176,5 @@ class GoogleClient():
             logging.info(f'Load job succesful for year {year} on {table_ref}')
 
         #checking or creating the final dataset where DBT will build the table.
-
         self.check_final_table_exists()
 

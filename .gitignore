@@ -10,7 +10,6 @@ ENV/
 .vscode/
 *.swp
 
-
 # Local dataset
 dataset_local/
 
@@ -22,18 +21,17 @@ __pycache__/
 
 # Enviroment variable files.env
 *.env
-
 *secrets/
 *logs/
 
-dags/cisa-cve-pipeline_dag.py
+# Local Docker files
 docker-compose.yml
 Dockerfile
 Dockerfile.local
 
 kaggle_manager.py
 
-
+#Ignore all files in src/ except the following
 src/*
     !src/__init__.py
     !src/config.py
@@ -43,3 +41,4 @@ src/*
     !src/load_raws_bq.py
     !src/parser.py
     !src/transform_to_final.py
+

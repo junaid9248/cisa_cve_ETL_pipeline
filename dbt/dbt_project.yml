@@ -37,7 +37,6 @@ clean-targets:         # directories to be removed by `dbt clean`
 
 models:
   cisa_cve_pipeline_with_gcp:
-    # Applies to all files under models/example/
     example:
       +materialized: table
     

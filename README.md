@@ -1,7 +1,7 @@
 # __CISA CVE Vulnrichment ELT Data pipeline__
 
 ## __Overview__
-This project implements a production-grade ELT (Extract, Load, Transform) pipeline using Apache Airflow to process Common Vulnerabilities and Exposures (CVE) data enriched by CISA's Authorized Data Publisher (ADP) Vulnrichment program (https://github.com/cisagov/vulnrichment/). 
+This project implements a high-performance ELT (Extract, Load, Transform) pipeline designed using Google Cloud Services, Apache Airflow and Data Build Tool (dbt) to process and analyze 120,000+ Common Vulnerabilities and Exposures (CVE) records data enriched by CISA's Authorized Data Publisher (ADP) Vulnrichment program (https://github.com/cisagov/vulnrichment/). 
 
 The pipeline automates the journey from raw, nested JSON vulnerability records to a structured, query-ready Data Warehouse, enabling security researchers to perform complex risk analysis at scale.
 
@@ -22,7 +22,8 @@ The pipeline automates the journey from raw, nested JSON vulnerability records t
     - ***Compute Engine***: VM hosting the Airflow orchestration containers
     - ***Cloud Run***: Serverless execution of ETL tasks
     - ***Artifact Registry***: Docker container image storage for cloud run containers
-    - ***Google Password Manager***: Securely stored env variables
+    - ***Google Secret Manager***: Securely stored secrets used as env variables during cloud run job
+    - ***GCP Service Account***: Identity configured with suitable roles to run GCP services
 
 ### _System Components_
 The pipeline operates on a GCP Compute Engine VM (e2-medium) with 2 vCPUs, 4GB RAM running Ubuntu 22.04, and consists of three primary layers:
@@ -42,7 +43,10 @@ The pipeline operates on a GCP Compute Engine VM (e2-medium) with 2 vCPUs, 4GB R
 - __Stage 3: Transform bronze table to final table using dbt__
     - Uses Bigquery SQL to transform bronze table into a refined final table available to use in BigQuery
 
-![CISA CVE Vulnrichment ELT Data pipeline architecture](elt_pipline.png) 
+![CISA CVE Vulnrichment ELT Data pipeline architecture](elt_pipline.png)
+
+
+## __Getting Started__
 
 
 

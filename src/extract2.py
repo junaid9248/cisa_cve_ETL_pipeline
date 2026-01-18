@@ -52,7 +52,6 @@ class cveExtractor():
             pool_maxsize= self.max_workers * 2
         )
 
-        #Establish a new session
         self.session = requests.Session()
         self.session.mount("https://", adapter)
         #self.session.headers.update(self.headers)
@@ -192,7 +191,6 @@ class cveExtractor():
 
         return year_data
     
-    # Called as threads
     def extract_single_cve_file(self, file: Dict = {}, year: str = ''):
         file_name = file['name']
         file_download_url = file['download_url']
@@ -279,7 +277,7 @@ class cveExtractor():
                 pending = set()
                 names_pending_by_future = {}
 
-                # Initial fill of the 'pending' bucket
+                # Initial add to the pending
                 for _ in range(max_in_memory):
                     try:
                         current_file = next(files_iter)
@@ -290,11 +288,11 @@ class cveExtractor():
                         break
 
                 while pending:
-                    
+                    # create a set of done futures and pending futures
                     done, pending = wait(fs=pending, timeout=30, return_when=FIRST_COMPLETED)
                     try:  
                         for future in done:
-                            result = future.result()
+                            result = future.result()    
                             fname = names_pending_by_future.pop(future, "Unknown")
                             
                             if result is None:

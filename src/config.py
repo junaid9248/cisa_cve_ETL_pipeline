@@ -26,6 +26,7 @@ GCLOUD_PROJECTNAME = fetch_env_variable('GCLOUD_PROJECTNAME', default_var_value=
 GCLOUD_BUCKETNAME = fetch_env_variable('GCLOUD_BUCKETNAME', default_var_value=None)
 GOOGLE_APPLICATION_CREDENTIALS_PATH = fetch_env_variable('GOOGLE_APPLICATION_CREDENTIALS_PATH', default_var_value= None)
 GH_TOKEN = fetch_env_variable('GH_TOKEN', default_var_value=None)
+#Explicitly set for airflow only
 PYTHONPATH = '/opt/airflow/repo'
 MY_EMAIL = fetch_env_variable('MY_EMAIL', None)
 AIRFLOW__WEBSERVER__SECRET_KEY = fetch_env_variable('AIRFLOW__WEBSERVER__SECRET_KEY', None)
