@@ -22,7 +22,7 @@ The pipeline automates the journey from raw, nested JSON vulnerability records t
     - ***Compute Engine***: VM hosting the Airflow orchestration containers
     - ***Cloud Run***: Serverless execution of ETL tasks
     - ***Artifact Registry***: Docker container image storage for cloud run containers
-    - ***Google Password Manager***: Securely stored env variables
+    - ***Google Secret Manager***: Securely stored secrets used as env variables during cloud run job
     - ***GCP Service Account***: Identity configured with suitable roles to run GCP services
 
 ### _System Components_
@@ -43,7 +43,10 @@ The pipeline operates on a GCP Compute Engine VM (e2-medium) with 2 vCPUs, 4GB R
 - __Stage 3: Transform bronze table to final table using dbt__
     - Uses Bigquery SQL to transform bronze table into a refined final table available to use in BigQuery
 
-![CISA CVE Vulnrichment ELT Data pipeline architecture](elt_pipline.png) 
+![CISA CVE Vulnrichment ELT Data pipeline architecture](elt_pipline.png)
+
+
+## __Getting Started__
 
 
 
