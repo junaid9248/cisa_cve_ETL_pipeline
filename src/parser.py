@@ -113,11 +113,11 @@ def vector_string_to_metrics(cve_entry_template,vector_string: str) -> Dict[str,
 # Helper function to parse date time string values to clean them and convert them using suitable datetime string formats
 def parse_cve_datetime_strings(dt_string: str, column_value: str = '', cve_id: str = ''):
         
-    # Return if noneType
+    # Return if none type is passed
     if not dt_string:
         logging.info(f'None type value detected for {cve_id} record, returning back')
-        return None
-
+        return 
+    
     # Step 1: Check for extra Z charcter
     str_list = list(dt_string)
 
@@ -196,14 +196,18 @@ def extract_cvedata (cve_data_json: Dict = {}):
             cve_entry_template['cve_id'] = cve_id
 
             # Passing datepublished to helper method so we can get isoformat timestamp
-            published_date_string = cve_data_json.get('cveMetadata', {}).get('datePublished', '')
-            pdt_object = parse_cve_datetime_strings(dt_string=published_date_string, column_value='datePublished', cve_id = cve_id)
-            cve_entry_template['published_date'] = pdt_object.isoformat()
+            cve_metdata_container = cve_data_json.get('cveMetadata',{})
+            if cve_metdata_container is None:
+                logging.warning(f' No cveMetadata container found for {cve_id}')
+            else:
+                published_date_string = cve_metdata_container.get('datePublished', '')
+                pdt_object = parse_cve_datetime_strings(dt_string=published_date_string, column_value='datePublished', cve_id = cve_id)
+                cve_entry_template['published_date'] = pdt_object.isoformat()
 
-            # Passing dateUpdated to helper method so we can get isoformat timestamp
-            updated_date_string = cve_data_json.get('cveMetadata', {}).get('dateUpdated', '')
-            udt_object = parse_cve_datetime_strings(dt_string=updated_date_string, column_value='dateUpdated', cve_id = cve_id)
-            cve_entry_template['updated_date'] = udt_object.isoformat()
+                # Passing dateUpdated to helper method so we can get isoformat timestamp
+                updated_date_string = cve_metdata_container.get('dateUpdated', '')
+                udt_object = parse_cve_datetime_strings(dt_string=updated_date_string, column_value='dateUpdated', cve_id = cve_id)
+                cve_entry_template['updated_date'] = udt_object.isoformat()
 
             # 2. FINDING THE ADP CONTAINER FROM TOP LEVEL 'CONTAINERS' CONTAINER
             if 'adp' in cve_data_json.get('containers', {}):
