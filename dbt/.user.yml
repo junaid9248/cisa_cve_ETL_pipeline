@@ -1,1 +1,1 @@
-id: ${DBT_USER_ID}
+id: "{{env_var('DBT_USER_ID')}}"

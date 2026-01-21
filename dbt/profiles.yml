@@ -4,10 +4,10 @@ bigquery-profile:
     dev:
       type: bigquery
       method: service-account
-      project: ${GCLOUD_PROJECTNAME}
+      project: "{{env_var('GCLOUD_PROJECTNAME')}}" #Updated to use env var using jinja templating
       dataset: dataset_final
       threads: 10 # Must be a value of 1 or greater
-      keyfile: /app/secrets/cisa-elt-pipeline.json #Updated to match the path described in the Dockerfile when building the containers
+      keyfile: "{{env_var('GOOGLE_APPLICATION_CREDENTIALS_PATH')}}" #Updated to match the path described in the Dockerfile when building the containers
       location: US
       job_retries: 2
       job_retry_deadline_seconds: 60
