@@ -69,7 +69,6 @@ class cveExtractor():
         else:
             logging.warning(" No GitHub token found")
 
-
         #Instantiating a gc class if cloud mode
         if self.islocal == False:
             self.google_client = GoogleClient(isLocal=self.islocal)
@@ -209,7 +208,7 @@ class cveExtractor():
                 response = year_session.get(file_download_url)
 
             if response.status_code == 200:
-                logging.info(f'Successfully downloaded file: {file_name}')
+                #logging.info(f'Successfully downloaded file: {file_name}')
                 # Converts response to a python dictionary
                 cve_dict = response.json()
 
@@ -280,9 +279,12 @@ class cveExtractor():
                 for _ in range(max_in_memory):
                     try:
                         current_file = next(files_iter)
+                        file_name = current_file['name']
                         future = executor.submit(self.extract_single_cve_file, current_file, year)
-                        pending.add(future)
-                        names_pending_by_future[future] = current_file['name']
+                        if future:
+                            logging.info(f'Successfully downloaded file: {file_name}')
+                            pending.add(future)
+                            names_pending_by_future[future] = file_name
                     except StopIteration:
                         break
 
@@ -338,6 +340,9 @@ class cveExtractor():
                 os.remove(ndjson_path_for_year) 
             except Exception as e:
                     logging.warning(f'Something went wrong uploading {blob_name} to {GCLOUD_BUCKETNAME} : {e}')
+        else:
+            logging.info(f'Creating local dataset for year {year}')
+            self.year_to_csv(year= year, year_processed_files=extracted_rows)
 
     def year_to_csv(self, year_processed_files: List, year):
         try:
@@ -348,12 +353,21 @@ class cveExtractor():
             csv_file_path = os.path.join(local_dataset_folder_path, f'cve_data_{year}.csv')
 
             for file in year_processed_files:
+                
                 if isinstance(file.get('impacted_products'), list):
                     file['impacted_products'] = ','.join(file['impacted_products'])
                 
                 if isinstance(file.get('vulnerable_versions'), list):
                     file['vulnerable_versions'] = ','.join(file['vulnerable_versions'])
-            
+                
+                if file.get('cvss_version') == 4.0:
+                    if isinstance(file.get('confidentiality_impact'), list):
+                        file['confidentiality_impact'] = ','.join(file['confidentiality_impact'])
+                    if isinstance(file.get('integrity_impact'), list):
+                        file['integrity_impact'] = ','.join(file['integrity_impact'])
+                    if isinstance(file.get('availability_impact'), list):
+                        file['availability_impact'] = ','.join(file['availability_impact'])
+                
             with open(csv_file_path, mode ='w', newline='', encoding='UTF-8') as csvfile:
 
                 if year_processed_files:
