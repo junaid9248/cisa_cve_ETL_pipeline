@@ -69,7 +69,6 @@ class cveExtractor():
         else:
             logging.warning(" No GitHub token found")
 
-
         #Instantiating a gc class if cloud mode
         if self.islocal == False:
             self.google_client = GoogleClient(isLocal=self.islocal)
@@ -135,7 +134,6 @@ class cveExtractor():
                 year_response_data = response.json()
                 logging.info(f" Found {len(year_response_data)} subdirectories in {year} year directory")
                 
-                # Show what we actually got
                 for item in year_response_data:
                     logging.info(f"   - {item['name']}")
 
@@ -210,7 +208,7 @@ class cveExtractor():
                 response = year_session.get(file_download_url)
 
             if response.status_code == 200:
-                logging.info(f'Successfully downloaded file: {file_name}')
+                #logging.info(f'Successfully downloaded file: {file_name}')
                 # Converts response to a python dictionary
                 cve_dict = response.json()
 
@@ -281,9 +279,12 @@ class cveExtractor():
                 for _ in range(max_in_memory):
                     try:
                         current_file = next(files_iter)
+                        file_name = current_file['name']
                         future = executor.submit(self.extract_single_cve_file, current_file, year)
-                        pending.add(future)
-                        names_pending_by_future[future] = current_file['name']
+                        if future:
+                            logging.info(f'Successfully downloaded file: {file_name}')
+                            pending.add(future)
+                            names_pending_by_future[future] = file_name
                     except StopIteration:
                         break
 
@@ -339,6 +340,9 @@ class cveExtractor():
                 os.remove(ndjson_path_for_year) 
             except Exception as e:
                     logging.warning(f'Something went wrong uploading {blob_name} to {GCLOUD_BUCKETNAME} : {e}')
+        else:
+            logging.info(f'Creating local dataset for year {year}')
+            self.year_to_csv(year= year, year_processed_files=extracted_rows)
 
     def year_to_csv(self, year_processed_files: List, year):
         try:
@@ -349,12 +353,21 @@ class cveExtractor():
             csv_file_path = os.path.join(local_dataset_folder_path, f'cve_data_{year}.csv')
 
             for file in year_processed_files:
+                
                 if isinstance(file.get('impacted_products'), list):
                     file['impacted_products'] = ','.join(file['impacted_products'])
                 
                 if isinstance(file.get('vulnerable_versions'), list):
                     file['vulnerable_versions'] = ','.join(file['vulnerable_versions'])
-            
+                
+                if file.get('cvss_version') == 4.0:
+                    if isinstance(file.get('confidentiality_impact'), list):
+                        file['confidentiality_impact'] = str(file['confidentiality_impact'])
+                    if isinstance(file.get('integrity_impact'), list):
+                        file['integrity_impact'] = str(file['integrity_impact'])
+                    if isinstance(file.get('availability_impact'), list):
+                        file['availability_impact'] = str(file['availability_impact'])
+                
             with open(csv_file_path, mode ='w', newline='', encoding='UTF-8') as csvfile:
 
                 if year_processed_files:
@@ -389,11 +402,12 @@ class cveExtractor():
                 response = self.session.get(download_url)
 
             if response.status_code == 200:
-                logging.info(f"Successfully downloaded {file_name}")
                 cve_data = response.json()
 
-                extracted_data = self.extract_cve_data(cve_data)
-                
+                extracted_data = extract_cvedata(cve_data)
+                if extracted_data:
+                    logging.info(f"Successfully downloaded {file_name}")
+                    
                 return extracted_data
 
         except json.JSONDecodeError as e:
@@ -401,18 +415,25 @@ class cveExtractor():
 
 
     # Psuedo main function called from main.py
-    def run(self, years: List[str] = []):
+    def run(self, years: List[str] = [], cve_debug_id: Optional[str] = ''):
 
         success = self.test_connection()
 
         # If succesful test connection is established
         if success:
-            for year in years:
-                # Since for both local and cloud mode we still get the years
-                # years will be either all the available years (get_years())
-                # or can be the custom list of years for testing
+            if cve_debug_id:
+                year = cve_debug_id.split('-')[1]
                 year_data_file = self.get_cve_files_for_year(year)
-                self.extract_store_cve_data(year_data= year_data_file)
+                extracted_data = self.extract_data_for_cve_record(year_data = year_data_file, file_name = cve_debug_id)
+                print(extracted_data)
+
+            if years: 
+                for year in years:
+                    # Since for both local and cloud mode we still get the years
+                    # years will be either all the available years (get_years())
+                    # or can be the custom list of years for testing
+                    year_data_file = self.get_cve_files_for_year(year)
+                    self.extract_store_cve_data(year_data= year_data_file)
 
 
 

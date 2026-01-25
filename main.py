@@ -26,7 +26,6 @@ def run_elt_pipeline(args):
         years = fetch_all_years()
 
 
-    # STEP 1: Extract the raws and dump ndjson into data lake (GCS bucket)
     # Set whther executing extraction in local or cloud only mode
     if args.cloud:
         islocal = False
@@ -36,10 +35,18 @@ def run_elt_pipeline(args):
         islocal = True
         os.environ['IS_LOCAL'] = 'true'
 
+    # STEP 1: Extract the raws and dump ndjson into data lake (GCS bucket)
     if args.task ==  'extract':
-        logging.info(f'---STARTING EXTRACTION OF CVE RECORDS---')
-        extractor = cveExtractor(islocal= islocal)
-        extractor.run(years=years)
+        #Check if debugging state
+        if args.debug:
+            logging.info(f'STARTING EXTRACTION DEBUGGING FOR CVE:  {args.cveid}')
+            extractor = cveExtractor(islocal= islocal)
+            extractor.run(cve_debug_id=args.cveid)
+        else:
+            logging.info(f'---STARTING EXTRACTION OF CVE RECORDS---')
+            extractor = cveExtractor(islocal= islocal)
+            extractor.run(years=years)
+
 
     # STEP 2: Initialize the loader class and load ndjsons to a cve_raws table
     if args.task == 'load':
@@ -53,15 +60,18 @@ def run_elt_pipeline(args):
 
         dbt_command = f'dbt build --project-dir ./dbt --profiles-dir ./dbt --select sources'.split()
         run_dbt_command(dbt_command=dbt_command)
+
+
         
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description='Arguments passed to pipeline run function')
 
+
     argparser.add_argument('--task', 
-                            required= True,
-                            help='Defines what step should be performed from ETL pipeline',
-                            choices=['extract', 'load', 'transform'])
+                        required= True,
+                        help='Defines what step should be performed from ETL pipeline',
+                        choices=['extract', 'load', 'transform'])
 
     # Argument for local flag that creates a cveExtractor() instance with islocal set to true
     operation_mode_group = argparser.add_mutually_exclusive_group(required=True)
@@ -80,7 +90,16 @@ if __name__ == '__main__':
                            default= None,
                            type= str, 
                            help='Comma separated years list passed manually for testing')
+    # Debugging flags and arguments
+    argparser.add_argument('--debug',
+                           action= 'store_true',
+                           help='Run in debug mode for with cve ID argument')
+    argparser.add_argument('--cveid',
+                           default= None,
+                           type= str, 
+                           help='CVE ID passed manually for debugging extraction step')
     
+
     args= argparser.parse_args()
 
     if args:

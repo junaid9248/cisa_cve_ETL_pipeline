@@ -47,7 +47,9 @@ The pipeline operates on a GCP Compute Engine VM (e2-medium) with 2 vCPUs, 4GB R
 
 
 ## __Getting Started__
-
+### STEP 1: Setting up Google Cloud Project
+### STEP 2: Setting up virtual machine using Google Compute Engine
+### STEP 3: 
 
 
 
